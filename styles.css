@@ -1,0 +1,178 @@
+/* Minimal custom CSS. Tailwind does 99% of the UI. */
+
+/* Dropdown items */
+.dd-item {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(31, 42, 68, 0.85);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.dd-item:hover,
+.dd-item:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: rgba(31, 42, 68, 1);
+}
+
+/* Category cards (fix label overlap + consistent width) */
+.cat-card {
+  width: 132px;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.cat-avatar {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(226, 232, 240, 0.75);
+}
+.cat-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.cat-ph {
+  position: absolute;
+  inset: 0;
+  display: none;
+}
+.cat-ph-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(140, 185, 255, 0.55), rgba(255, 255, 255, 0.30));
+}
+.cat-ph-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(31, 42, 68, 0.55);
+}
+.cat-label {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(31, 42, 68, 0.9);
+  text-align: center;
+  line-height: 1.15;
+}
+.cat-label-2 {
+  /* allow 2 lines without overlap */
+  max-width: 120px;
+}
+
+/* Big pills row */
+.big-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.80);
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  box-shadow: 0 10px 35px rgba(15, 23, 42, 0.10);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+.big-pill:hover {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+}
+.big-pill:active {
+  transform: translateY(0px);
+}
+.big-pill:focus {
+  outline: none;
+  box-shadow: 0 0 0 6px rgba(191, 219, 254, 0.45), 0 10px 35px rgba(15, 23, 42, 0.10);
+}
+.big-pill-ic {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: rgba(241, 245, 249, 0.75);
+  color: rgba(31, 42, 68, 0.7);
+}
+.big-pill-tx {
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(31, 42, 68, 0.9);
+}
+
+/* Phone image (keep crisp + realistic shadow) */
+.phone-img {
+  will-change: transform;
+}
+
+/* Phone placeholder (only when asset missing) */
+.phone-ph {
+  will-change: transform;
+}
+.phone-shell {
+  width: min(560px, 100%);
+  aspect-ratio: 9 / 18.5;
+  border-radius: 44px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(240, 248, 255, 0.55));
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.18);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+}
+.phone-shell::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 20% 20%, rgba(140, 185, 255, 0.45), transparent 55%),
+    radial-gradient(circle at 80% 40%, rgba(140, 185, 255, 0.25), transparent 60%);
+  filter: blur(28px);
+  opacity: 0.8;
+}
+.phone-notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  width: 140px;
+  height: 26px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+}
+.phone-topbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  padding: 26px 8px 12px 8px;
+}
+.phone-card {
+  position: relative;
+  z-index: 1;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(226, 232, 240, 0.75);
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.10);
+  padding: 14px;
+}
+.phone-homebar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  width: 160px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  z-index: 1;
+}
