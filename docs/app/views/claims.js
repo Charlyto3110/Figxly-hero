@@ -1,0 +1,3 @@
+import { renderInternalLayout } from '../components/layout.js';
+
+export const renderClaims = (jobId) => renderInternalLayout('Levantar reclamo', `<form id="claim-form" data-job-id="${jobId}" class="space-y-3"><textarea name="description" required rows="4" class="w-full rounded-xl border border-slate-200 p-3" placeholder="Describe el problema"></textarea><select name="severity" class="w-full rounded-xl border border-slate-200 p-2 bg-white"><option>baja</option><option>media</option><option>alta</option></select><input name="evidence" type="file" multiple accept="image/*" class="w-full rounded-xl border border-slate-200 p-2" /><button class="rounded-xl bg-coral px-4 py-3 font-semibold text-white">Enviar reclamo</button></form>`, '#/dashboard');
