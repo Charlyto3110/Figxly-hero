@@ -49,3 +49,7 @@ GitHub Actions ejecuta `lint`, `test`, `build` para web y api.
 
 ## Notas de assets
 No se incluyen binarios. Usa placeholders y agrega recursos según `assets/README.md`.
+
+## GitHub Pages MVP (docs/)
+El MVP estático corre en `docs/` usando HTML/CSS/JS + localStorage (sin build).
+Ver rutas, roles de prueba y flujo en `docs/README.md`.

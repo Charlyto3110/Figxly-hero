@@ -61,7 +61,7 @@
 
         <nav class="hidden items-center gap-8 md:flex" aria-label="Principal">
           <a data-nav="/" href="#/" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Inicio</a>
-          <a data-nav="/orders" href="#/orders" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Mis citas</a>
+          <a data-nav="/requests" href="#/requests" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Solicitudes</a>
           <a data-nav="/support" href="#/support" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Asistencia</a>
         </nav>
 
@@ -73,7 +73,7 @@
 
       <div id="mobile-menu" class="md:hidden hidden mt-2 rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-card backdrop-blur">
         <a data-nav="/" href="#/" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Inicio</a>
-        <a data-nav="/orders" href="#/orders" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Mis citas</a>
+        <a data-nav="/requests" href="#/requests" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Solicitudes</a>
         <a data-nav="/support" href="#/support" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Asistencia</a>
         <div id="auth-mobile" class="mt-3 border-t border-slate-200/80 pt-3"></div>
       </div>
@@ -82,8 +82,9 @@
     </div>
 
     <div id="toast" class="pointer-events-none fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-full bg-uiBlue px-5 py-3 text-[14px] font-semibold text-white">OK</div>
+    <div id="modal-root"></div>
 
-    <script src="./data/mock.js" defer></script>
+    <script src="./data/data.js" defer></script>
     <script src="./main.js" defer></script>
   </body>
 </html>
