@@ -3,6 +3,8 @@ const qsa = (s, el = document) => [...el.querySelectorAll(s)];
 
 const STORAGE_KEYS = {
   session: 'figxly.session',
+  users: 'figxly.users',
+  pendingOtp: 'figxly.pendingOtp',
   bookings: 'figxly.bookings',
   reviews: 'figxly.reviews',
   tickets: 'figxly.tickets',
@@ -11,10 +13,23 @@ const STORAGE_KEYS = {
 
 const STORE = {
   get session() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || '{"name":"Invitado"}');
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || '{"loggedIn":false,"name":"Invitado"}');
   },
   set session(v) {
     localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(v));
+  },
+  get users() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.users) || '[]');
+  },
+  set users(v) {
+    localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(v));
+  },
+  get pendingOtp() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.pendingOtp) || 'null');
+  },
+  set pendingOtp(v) {
+    if (v) localStorage.setItem(STORAGE_KEYS.pendingOtp, JSON.stringify(v));
+    else localStorage.removeItem(STORAGE_KEYS.pendingOtp);
   },
   get bookings() {
     return JSON.parse(localStorage.getItem(STORAGE_KEYS.bookings) || '[]');
@@ -239,6 +254,101 @@ function renderTickets() {
   return `<section><h2 class="text-3xl font-semibold">Mis reclamos</h2><div class="mt-5 space-y-3">${tickets.map((t) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${t.folio} · ${t.reason}</p><p class="text-sm text-slateInk/70">${t.description}</p><p class="text-sm">Estado: ${t.status}</p></article>`).join('') || '<p class="text-slateInk/70">No tienes reclamos activos.</p>'}</div></section>`;
 }
 
+
+function socialIcon(provider) {
+  const icons = {
+    google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.7h5.5a4.9 4.9 0 0 1-2.1 3.2v2.7h3.4c2-1.8 3-4.4 3-7.6Z"/><path fill="currentColor" d="M12 22c2.7 0 5-1 6.7-2.6l-3.4-2.7c-.9.7-2.1 1.2-3.3 1.2-2.6 0-4.8-1.8-5.6-4.2H2.9v2.8A10 10 0 0 0 12 22Z"/><path fill="currentColor" d="M6.4 13.7a6 6 0 0 1 0-3.4V7.5H2.9a10 10 0 0 0 0 8.9l3.5-2.7Z"/><path fill="currentColor" d="M12 6.1c1.4 0 2.7.5 3.7 1.5l2.8-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9.1 5.5l3.5 2.8C7.2 7.9 9.4 6.1 12 6.1Z"/></svg>',
+    apple: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.3 12.3c0-2.2 1.8-3.2 1.9-3.3-1-.1-2.2.6-2.8.6-.8 0-1.5-.6-2.4-.5-1.2 0-2.4.7-3 1.8-1.3 2.3-.3 5.8 1 7.5.7.9 1.4 1.8 2.4 1.8s1.3-.6 2.4-.6 1.4.6 2.4.6 1.6-.9 2.2-1.8c.8-1.1 1.1-2.2 1.1-2.2s-2.1-.8-2.1-3.9Zm-1.7-5.2c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.9-.4 2.4-1.1Z"/></svg>',
+    facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.6 1.6-1.6h1.7V3.8c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4v2.2H8V13h2.4v8h3.1Z"/></svg>',
+  };
+  return icons[provider] || '';
+}
+
+function authCard(title, subtitle, content) {
+  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">${title}</h2><p class="mt-2 text-slateInk/70">${subtitle}</p><div class="mt-6">${content}</div></section>`;
+}
+
+function renderAuthSocialLinks(mode) {
+  const label = mode === 'signup' ? 'Registrarme con' : 'Iniciar con';
+  return ['google', 'apple', 'facebook'].map((provider) => `<a href="#/auth/social/${provider}?mode=${mode}" class="auth-social"><span class="auth-social-ic">${socialIcon(provider)}</span>${label} ${provider[0].toUpperCase() + provider.slice(1)}</a>`).join('');
+}
+
+function renderAuthSignup() {
+  return authCard('Regístrate', 'Crea tu cuenta con tu método preferido.', `${renderAuthSocialLinks('signup')}<div class="mt-4 grid gap-3 sm:grid-cols-2"><a href="#/auth/phone?mode=signup" class="auth-secondary">Número de celular</a><a href="#/auth/email?mode=signup" class="auth-secondary">Correo y contraseña</a></div><p class="mt-4 text-sm text-slateInk/70">¿Ya tienes cuenta? <a class="font-semibold text-uiBlue" href="#/auth/login">Inicia sesión</a></p>`);
+}
+
+function renderAuthLogin() {
+  return authCard('Iniciar sesión', 'Accede para gestionar tus citas y soporte.', `${renderAuthSocialLinks('login')}<div class="mt-4 grid gap-3 sm:grid-cols-2"><a href="#/auth/phone?mode=login" class="auth-secondary">Entrar con celular</a><a href="#/auth/email?mode=login" class="auth-secondary">Entrar con correo</a></div><p class="mt-4 text-sm text-slateInk/70">¿No tienes cuenta? <a class="font-semibold text-uiBlue" href="#/auth/signup">Regístrate</a></p>`);
+}
+
+function renderAuthPhone(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard('Verifica tu celular', 'Te enviaremos un código OTP mock de 6 dígitos.', `<form id="phone-form" data-mode="${mode}" class="space-y-4"><label class="block">Número de celular<input name="phone" required minlength="8" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="+52 55 1234 5678" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Continuar</button></form>`);
+}
+
+function renderAuthOtp(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard('Código OTP', 'Ingresa el código mock: 123456.', `<form id="otp-form" data-mode="${mode}" class="space-y-4"><label class="block">OTP<input name="otp" required minlength="6" maxlength="6" class="mt-1 w-full rounded-xl border border-slate-200 p-3 tracking-[0.35em]" placeholder="123456" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Validar código</button></form>`);
+}
+
+function renderAuthEmail(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard(mode === 'signup' ? 'Registro por correo' : 'Ingreso por correo', 'Usa tu correo y contraseña para continuar.', `<form id="email-form" data-mode="${mode}" class="space-y-4"><label class="block">Nombre completo<input name="name" ${mode === 'signup' ? 'required' : ''} class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="Tu nombre" /></label><label class="block">Correo<input type="email" name="email" required class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="hola@correo.com" /></label><label class="block">Contraseña<input type="password" name="password" required minlength="6" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="******" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">${mode === 'signup' ? 'Crear cuenta' : 'Entrar'}</button></form>`);
+}
+
+function renderAuthSocial(provider, params) {
+  const mode = params.get('mode') || 'login';
+  const name = provider[0].toUpperCase() + provider.slice(1);
+  return authCard(`${mode === 'signup' ? 'Registro' : 'Ingreso'} con ${name}`, `Este flujo es mock y simula autenticación con ${name}.`, `<button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white" data-social-login="${provider}" data-mode="${mode}">Continuar con ${name}</button><p class="mt-3 text-sm text-slateInk/70">No se realizan llamadas externas.</p>`);
+}
+
+function renderAccount() {
+  const session = STORE.session;
+  if (!session.loggedIn) return '<section class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><p class="text-slateInk/75">Debes iniciar sesión para ver tu cuenta.</p><a href="#/auth/login" class="mt-4 inline-block rounded-xl bg-uiBlue px-4 py-2 text-white">Iniciar sesión</a></section>';
+  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">Mi cuenta</h2><p class="mt-2 text-slateInk/70">${session.name}</p><dl class="mt-5 grid gap-4 sm:grid-cols-2"><div class="rounded-2xl bg-haze p-4"><dt class="text-sm text-slateInk/70">Método</dt><dd class="font-semibold">${session.provider || 'email'}</dd></div><div class="rounded-2xl bg-haze p-4"><dt class="text-sm text-slateInk/70">Contacto</dt><dd class="font-semibold">${session.email || session.phone || 'Sin dato'}</dd></div></dl></section>`;
+}
+
+function loginUser(user) {
+  STORE.session = { ...user, loggedIn: true };
+  renderAuthControls();
+  toast('¡Bienvenido a Figxly!');
+  navTo('/');
+}
+
+function upsertUser(user) {
+  const users = STORE.users;
+  const key = user.email ? 'email' : user.phone ? 'phone' : 'id';
+  const next = users.filter((u) => (key === 'id' ? u.id !== user.id : u[key] !== user[key]));
+  next.unshift(user);
+  STORE.users = next;
+}
+
+function getInitials(name = 'U') {
+  return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function renderAuthControls() {
+  const session = STORE.session;
+  const desktop = qs('#auth-desktop');
+  const mobile = qs('#auth-mobile');
+  if (!desktop || !mobile) return;
+
+  if (!session.loggedIn) {
+    desktop.innerHTML = `<a href="#/auth/login" class="auth-link">Iniciar sesión</a><a href="#/auth/signup" class="auth-btn">Regístrate</a>`;
+    mobile.innerHTML = `<div class="grid gap-2"><a href="#/auth/login" class="auth-link text-center">Iniciar sesión</a><a href="#/auth/signup" class="auth-btn text-center">Regístrate</a></div>`;
+    return;
+  }
+
+  desktop.innerHTML = `<div class="relative"><button id="account-btn" type="button" class="account-btn"><span class="account-avatar">${getInitials(session.name)}</span><span class="max-w-[140px] truncate">${session.name}</span></button><div id="account-menu" class="account-menu hidden"><a href="#/account" class="dd-item">Mi cuenta</a><a href="#/orders" class="dd-item">Mis citas</a><a href="#/reviews" class="dd-item">Mis reseñas</a><a href="#/support" class="dd-item">Soporte / Reclamos</a><button type="button" class="dd-item" data-logout>Cerrar sesión</button></div></div>`;
+  mobile.innerHTML = `<div class="rounded-2xl bg-white/80 p-3 ring-1 ring-slate-200/70"><p class="text-sm font-semibold text-slateInk">${session.name}</p><div class="mt-2 grid gap-2"><a href="#/account" class="dd-item">Mi cuenta</a><a href="#/orders" class="dd-item">Mis citas</a><a href="#/reviews" class="dd-item">Mis reseñas</a><a href="#/support" class="dd-item">Soporte / Reclamos</a><button type="button" class="dd-item" data-logout>Cerrar sesión</button></div></div>`;
+}
+
+
+function renderMyReviews() {
+  const reviews = STORE.reviews;
+  return `<section><h2 class="text-3xl font-semibold">Mis reseñas</h2><div class="mt-5 space-y-3">${reviews.map((r) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${r.user} · ⭐ ${r.rating}</p><p class="text-sm text-slateInk/70">${r.comment}</p></article>`).join('') || '<p class="text-slateInk/70">Todavía no has publicado reseñas.</p>'}</div></section>`;
+}
+
 function renderRoute() {
   const app = qs('#app');
   const { path, params } = parseHash();
@@ -253,8 +363,17 @@ function renderRoute() {
   else if (seg[0] === 'support') html = renderSupport(params);
   else if (seg[0] === 'orders') html = renderOrders();
   else if (seg[0] === 'tickets') html = renderTickets();
+  else if (seg[0] === 'reviews') html = renderMyReviews();
+  else if (seg[0] === 'account') html = renderAccount();
+  else if (seg[0] === 'auth' && seg[1] === 'signup') html = renderAuthSignup();
+  else if (seg[0] === 'auth' && seg[1] === 'login') html = renderAuthLogin();
+  else if (seg[0] === 'auth' && seg[1] === 'phone') html = renderAuthPhone(params);
+  else if (seg[0] === 'auth' && seg[1] === 'otp') html = renderAuthOtp(params);
+  else if (seg[0] === 'auth' && seg[1] === 'email') html = renderAuthEmail(params);
+  else if (seg[0] === 'auth' && seg[1] === 'social' && seg[2]) html = renderAuthSocial(seg[2], params);
   else html = renderHome();
   app.innerHTML = html;
+  renderAuthControls();
   bindEvents();
   setupImageFallbacks();
   updateActiveNav(path);
@@ -369,21 +488,77 @@ function bindEvents() {
     toast(`Ticket creado: ${ticket.folio}`);
     navTo('/tickets');
   });
+
+  qs('#phone-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    STORE.pendingOtp = { phone: data.phone, mode: e.currentTarget.dataset.mode || 'login', otp: '123456' };
+    toast('OTP mock enviado: 123456');
+    navTo(`/auth/otp?mode=${encodeURIComponent(e.currentTarget.dataset.mode || 'login')}`);
+  });
+
+  qs('#otp-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const pending = STORE.pendingOtp;
+    if (!pending || data.otp !== '123456') {
+      toast('OTP inválido');
+      return;
+    }
+    const user = { id: uid('usr'), name: `Usuario ${pending.phone.slice(-4)}`, phone: pending.phone, provider: 'phone' };
+    upsertUser(user);
+    STORE.pendingOtp = null;
+    loginUser(user);
+  });
+
+  qs('#email-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const mode = e.currentTarget.dataset.mode || 'login';
+    const existing = STORE.users.find((u) => u.email === data.email);
+    if (mode === 'login' && !existing) {
+      toast('Cuenta no encontrada, regístrate primero');
+      navTo('/auth/signup');
+      return;
+    }
+    if (mode === 'login' && existing.password !== data.password) {
+      toast('Contraseña incorrecta');
+      return;
+    }
+    const user = mode === 'login' ? existing : { id: uid('usr'), name: data.name || data.email.split('@')[0], email: data.email, password: data.password, provider: 'email' };
+    if (mode === 'signup') upsertUser(user);
+    loginUser(user);
+  });
+
+  qsa('[data-social-login]').forEach((btn) => btn.addEventListener('click', () => {
+    const provider = btn.dataset.socialLogin;
+    const user = { id: uid('usr'), name: `Usuario ${provider}`, provider };
+    upsertUser(user);
+    loginUser(user);
+  }));
+
+  qsa('[data-logout]').forEach((btn) => btn.addEventListener('click', () => {
+    STORE.session = { loggedIn: false, name: 'Invitado' };
+    renderAuthControls();
+    toast('Sesión cerrada');
+    navTo('/');
+  }));
+
+  qs('#account-btn')?.addEventListener('click', () => qs('#account-menu')?.classList.toggle('hidden'));
 }
 
 function setupChrome() {
   const btn = qs('#btn-mobile-menu');
   const panel = qs('#mobile-menu');
-  const profileBtn = qs('#profile-btn');
-  const profileMenu = qs('#profile-menu');
 
   btn?.addEventListener('click', () => {
     panel?.classList.toggle('hidden');
     btn.setAttribute('aria-expanded', String(btn.getAttribute('aria-expanded') !== 'true'));
   });
-  profileBtn?.addEventListener('click', () => profileMenu?.classList.toggle('hidden'));
   document.addEventListener('click', (e) => {
-    if (!profileBtn?.contains(e.target) && !profileMenu?.contains(e.target)) profileMenu?.classList.add('hidden');
+    const accountBtn = qs('#account-btn');
+    const accountMenu = qs('#account-menu');
+    if (!accountBtn?.contains(e.target) && !accountMenu?.contains(e.target)) accountMenu?.classList.add('hidden');
   });
 }
 
