@@ -60,18 +60,27 @@
         </a>
 
         <nav class="hidden items-center gap-8 md:flex" aria-label="Principal">
-          <a data-nav href="#/" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Inicio</a>
-          <a data-nav href="#/mis-citas" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Mis citas</a>
-          <a data-nav href="#/soporte" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Asistencia</a>
+          <a data-nav="/" href="#/" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Inicio</a>
+          <a data-nav="/orders" href="#/orders" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Mis citas</a>
+          <a data-nav="/support" href="#/support" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Asistencia</a>
         </nav>
 
+
+
+        <div class="relative hidden md:block">
+          <button id="profile-btn" type="button" class="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200/80 bg-white/80 text-slateInk">👤</button>
+          <div id="profile-menu" class="hidden absolute right-0 mt-2 w-44 rounded-2xl border border-slate-200/70 bg-white p-2 shadow-card">
+            <a href="#/orders" class="dd-item">Mis citas</a>
+            <a href="#/tickets" class="dd-item">Mis reclamos</a>
+          </div>
+        </div>
         <button id="btn-mobile-menu" type="button" aria-expanded="false" class="md:hidden inline-flex items-center justify-center rounded-full border border-slate-200/80 bg-white/70 px-4 py-2 text-[14px] font-medium text-slateInk/80">Menú</button>
       </header>
 
       <div id="mobile-menu" class="md:hidden hidden mt-2 rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-card backdrop-blur">
-        <a data-nav href="#/" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Inicio</a>
-        <a data-nav href="#/mis-citas" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Mis citas</a>
-        <a data-nav href="#/soporte" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Asistencia</a>
+        <a data-nav="/" href="#/" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Inicio</a>
+        <a data-nav="/orders" href="#/orders" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Mis citas</a>
+        <a data-nav="/support" href="#/support" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Asistencia</a>
       </div>
 
       <main id="app" class="mt-10"></main>

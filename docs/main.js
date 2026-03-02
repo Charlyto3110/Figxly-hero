@@ -1,103 +1,242 @@
 const qs = (s, el = document) => el.querySelector(s);
 const qsa = (s, el = document) => [...el.querySelectorAll(s)];
 
-const STORE = {
-  get selectedLocation() { return localStorage.getItem('selectedLocation') || 'Ciudad de México'; },
-  set selectedLocation(v) { localStorage.setItem('selectedLocation', v); },
-  get bookings() { return JSON.parse(localStorage.getItem('bookings') || '[]'); },
-  set bookings(v) { localStorage.setItem('bookings', JSON.stringify(v)); },
-  get lastSearch() { return JSON.parse(localStorage.getItem('lastSearch') || '{}'); },
-  set lastSearch(v) { localStorage.setItem('lastSearch', JSON.stringify(v)); },
+const STORAGE_KEYS = {
+  session: 'figxly.session',
+  bookings: 'figxly.bookings',
+  reviews: 'figxly.reviews',
+  tickets: 'figxly.tickets',
+  lastSearch: 'figxly.lastSearch',
 };
 
-const state = { checkout: null, draftReviewTech: null };
+const STORE = {
+  get session() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || '{"name":"Invitado"}');
+  },
+  set session(v) {
+    localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(v));
+  },
+  get bookings() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.bookings) || '[]');
+  },
+  set bookings(v) {
+    localStorage.setItem(STORAGE_KEYS.bookings, JSON.stringify(v));
+  },
+  get reviews() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.reviews) || '[]');
+  },
+  set reviews(v) {
+    localStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(v));
+  },
+  get tickets() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.tickets) || '[]');
+  },
+  set tickets(v) {
+    localStorage.setItem(STORAGE_KEYS.tickets, JSON.stringify(v));
+  },
+  get lastSearch() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.lastSearch) || '{}');
+  },
+  set lastSearch(v) {
+    localStorage.setItem(STORAGE_KEYS.lastSearch, JSON.stringify(v));
+  },
+};
 
-function navTo(path) { location.hash = path.startsWith('/') ? `#${path}` : `#/${path}`; }
-function parseHash() {
-  const hash = location.hash.replace(/^#/, '') || '/';
-  const [path, queryString = ''] = hash.split('?');
-  return { path, params: new URLSearchParams(queryString) };
+const state = { bookingDraft: null, activeStars: 5 };
+
+function uid(prefix = 'id') {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
-function toast(msg) {
+function navTo(path) {
+  location.hash = path.startsWith('/') ? `#${path}` : `#/${path}`;
+}
+function parseHash() {
+  const hash = (location.hash || '#/').replace(/^#/, '');
+  const [path, queryString = ''] = hash.split('?');
+  return { path: path || '/', params: new URLSearchParams(queryString) };
+}
+function toast(message, timeout = 1700) {
   const t = qs('#toast');
   if (!t) return;
-  t.textContent = msg;
+  t.textContent = message;
   t.classList.remove('hidden');
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.add('hidden'), 1500);
-}
-
-function cardTech(t) {
-  return `<button data-tech-id="${t.id}" class="tech-card text-left rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card hover:-translate-y-0.5 transition w-full focus:outline-none focus:ring-4 focus:ring-blue-200/60">
-    <p class="font-semibold text-slateInk">${t.name}</p>
-    <p class="text-sm text-slateInk/70 line-clamp-2">${t.bio}</p>
-    <div class="mt-3 flex items-center justify-between text-sm text-slateInk/70"><span>⭐ ${t.rating} · ${t.jobs} trabajos</span><span>Desde $${t.price}</span></div>
-  </button>`;
+  t._timer = setTimeout(() => t.classList.add('hidden'), timeout);
 }
 
 function renderHome() {
-  const cats = window.FIGXLY_MOCK.categories;
+  const { categories } = window.FIGXLY_MOCK;
+  const last = STORE.lastSearch;
   return `<section class="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 -mt-4">
     <div class="max-w-[640px]">
       <h1 class="text-slateInk tracking-[-0.03em] leading-[1.06] font-semibold text-[32px] sm:text-[40px] lg:text-[48px]">El talento que necesitas,<br />a tu servicio con un clic</h1>
+      <p class="mt-5 text-[17px] text-slateInk/70">Busca, agenda y paga en minutos. Todo desde Figxly con técnicos verificados y soporte humano.</p>
       <form id="search-form" class="mt-8" autocomplete="off">
-        <div class="relative flex items-center gap-2 rounded-full bg-white/80 shadow-pill ring-1 ring-slate-200/70 px-4 py-3 sm:px-5 sm:py-4">
-          <input id="q" name="q" type="text" placeholder="¿Qué servicio necesitas?" class="min-w-0 flex-[2] bg-transparent text-[15px] font-medium text-slateInk/80 placeholder:text-slateInk/45 outline-none" />
-          <input id="loc" name="loc" value="${STORE.selectedLocation}" class="min-w-0 hidden sm:block flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
-          <input id="dateInput" name="date" type="date" class="min-w-0 hidden sm:block flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
-          <button type="submit" class="ml-2 w-[118px] sm:w-[140px] rounded-full bg-coral px-5 py-3 text-[14px] font-semibold text-white">Buscar</button>
+        <div class="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-3xl sm:rounded-full bg-white/85 shadow-pill ring-1 ring-slate-200/70 px-4 py-3 sm:px-5 sm:py-4">
+          <input name="q" value="${last.q || ''}" type="text" placeholder="¿Qué servicio necesitas?" class="min-w-0 flex-[2] bg-transparent text-[15px] font-medium text-slateInk/80 placeholder:text-slateInk/45 outline-none" />
+          <input name="loc" value="${last.loc || 'Ciudad de México'}" class="min-w-0 flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
+          <input name="date" value="${last.date || ''}" type="date" class="min-w-0 flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
+          <button type="submit" class="ml-0 sm:ml-2 rounded-full bg-coral px-5 py-3 text-[14px] font-semibold text-white">Buscar</button>
         </div>
       </form>
-      <div class="mt-10 flex flex-wrap items-start gap-7 sm:gap-8">${cats.map((c) => `<button data-category="${c.slug}" class="cat-card"><div class="cat-avatar"><img src="./assets/cat-${c.slug}.jpg" alt="${c.name}" class="cat-img" data-fallback="cat" /><div class="cat-ph" aria-hidden="true"><div class="cat-ph-bg"></div><div class="cat-ph-icon text-2xl">${c.icon}</div></div></div><div class="cat-label">${c.name}</div></button>`).join('')}</div>
-      <div class="mt-10 flex flex-wrap gap-5">${cats.slice(0, 3).map((c) => `<button class="big-pill" data-category="${c.slug}"><span class="big-pill-ic">${c.icon}</span><span class="big-pill-tx">${c.name}</span></button>`).join('')}</div>
+      <div class="mt-10 flex flex-wrap items-start gap-7 sm:gap-8">${categories.map((c) => `<button data-service="${c.slug}" class="cat-card"><div class="cat-avatar"><div class="cat-ph" style="display:block"><div class="cat-ph-bg"></div><div class="cat-ph-icon text-2xl">${c.icon}</div></div></div><div class="cat-label">${c.name}</div></button>`).join('')}</div>
+      <div class="mt-10 flex flex-wrap gap-5">${categories.slice(0, 4).map((c) => `<button class="big-pill" data-service="${c.slug}"><span class="big-pill-ic">${c.icon}</span><span class="big-pill-tx">${c.name}</span></button>`).join('')}</div>
     </div>
     <div class="relative"><img src="./assets/phone-mock.png" alt="Vista previa de la app Figxly" class="phone-img block w-full max-w-[520px] lg:max-w-[560px] translate-x-6 lg:translate-x-8 rotate-[10deg] rounded-[42px] shadow-float" data-fallback="phone" /><div class="phone-ph hidden translate-x-6 lg:translate-x-8 rotate-[10deg]"><div class="phone-shell"><div class="phone-notch"></div><div class="phone-card mt-12"><div class="h-24 rounded-2xl bg-haze"></div></div><div class="phone-card mt-4"><div class="h-24 rounded-2xl bg-haze"></div></div><div class="phone-homebar"></div></div></div></div>
   </section>`;
 }
 
-function renderSearch(params) {
-  const q = params.get('q') || '';
-  const loc = params.get('loc') || STORE.selectedLocation;
-  const date = params.get('date') || '';
-  const results = window.FIGXLY_MOCK.searchTechnicians({ q, loc, date });
-  return `<section><h2 class="text-3xl font-semibold text-slateInk">Resultados de búsqueda</h2><p class="text-slateInk/70 mt-2">${results.length} técnicos en ${loc}</p><div class="mt-6 grid gap-4 md:grid-cols-2">${results.map(cardTech).join('') || '<p>Sin resultados.</p>'}</div></section>`;
+function techCard(t) {
+  return `<article class="rounded-2xl bg-white/90 p-4 ring-1 ring-slate-200/80 shadow-card">
+    <div class="flex items-start justify-between gap-3">
+      <div><h3 class="text-lg font-semibold text-slateInk">${t.nombre}</h3><p class="text-sm text-slateInk/65">${t.servicioLabel} · ${t.ciudad} · ${t.distanciaKm} km</p></div>
+      <span class="rounded-full bg-haze px-3 py-1 text-xs font-semibold text-uiBlue">⭐ ${t.rating}</span>
+    </div>
+    <p class="mt-3 text-sm text-slateInk/70 line-clamp-2">${t.descripcion}</p>
+    <div class="mt-3 flex flex-wrap gap-2">${t.tags.map((tag) => `<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slateInk/70">${tag}</span>`).join('')}</div>
+    <div class="mt-4 flex items-center justify-between"><p class="font-semibold text-slateInk">Desde $${t.precioBase} MXN</p><button data-go-pro="${t.id}" class="rounded-xl bg-uiBlue px-4 py-2 text-sm font-semibold text-white">Ver perfil</button></div>
+  </article>`;
 }
 
-function renderCategory(slug) {
-  const cat = window.FIGXLY_MOCK.categories.find((c) => c.slug === slug);
-  const techs = window.FIGXLY_MOCK.searchTechnicians({ category: slug });
-  return `<section><h2 class="text-3xl font-semibold text-slateInk">${cat?.name || 'Categoría'}</h2><div class="mt-6 grid gap-4 md:grid-cols-2">${techs.map(cardTech).join('')}</div></section>`;
+function renderResults(params) {
+  const filters = {
+    q: params.get('q') || '',
+    loc: params.get('loc') || '',
+    date: params.get('date') || '',
+    service: params.get('service') || '',
+    minRating: Number(params.get('minRating') || 0),
+    maxPrice: Number(params.get('maxPrice') || 10000),
+    verifiedOnly: params.get('verified') === '1',
+    todayOnly: params.get('today') === '1',
+  };
+  const results = window.FIGXLY_MOCK.searchTechnicians(filters);
+  return `<section class="space-y-6">
+    <header class="rounded-2xl bg-white/85 p-5 ring-1 ring-slate-200/80 shadow-card">
+      <h2 class="text-3xl font-semibold text-slateInk">Técnicos disponibles</h2>
+      <p class="mt-2 text-slateInk/70">${results.length} resultados ${filters.loc ? `en ${filters.loc}` : ''} ${filters.date ? `para ${filters.date}` : ''}</p>
+    </header>
+    <div class="grid gap-6 lg:grid-cols-[260px_1fr]">
+      <aside class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card h-fit">
+        <h3 class="font-semibold text-slateInk">Filtros</h3>
+        <form id="filters-form" class="mt-4 space-y-3 text-sm">
+          <label class="block">Servicio<select name="service" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"><option value="">Todos</option>${window.FIGXLY_MOCK.services.map((s) => `<option value="${s.slug}" ${s.slug === filters.service ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>
+          <label class="block">Rating mínimo<select name="minRating" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white">${[0, 4, 4.5].map((v) => `<option value="${v}" ${v === filters.minRating ? 'selected' : ''}>${v === 0 ? 'Cualquiera' : `${v}+`}</option>`).join('')}</select></label>
+          <label class="block">Precio máximo<input type="range" min="250" max="1200" step="50" name="maxPrice" value="${filters.maxPrice}" class="mt-1 w-full" /><span class="text-xs text-slateInk/70">Hasta $${filters.maxPrice}</span></label>
+          <label class="flex items-center gap-2"><input type="checkbox" name="verified" ${filters.verifiedOnly ? 'checked' : ''} /> Verificados</label>
+          <label class="flex items-center gap-2"><input type="checkbox" name="today" ${filters.todayOnly ? 'checked' : ''} /> Disponible hoy</label>
+          <button class="w-full rounded-xl bg-uiBlue px-3 py-2 font-semibold text-white">Aplicar filtros</button>
+        </form>
+      </aside>
+      <div class="grid gap-4 md:grid-cols-2">${results.map(techCard).join('') || '<p class="text-slateInk/70">No hay técnicos con esos filtros.</p>'}</div>
+    </div>
+  </section>`;
 }
 
-function renderTech(id) {
-  const t = window.FIGXLY_MOCK.getTechnician(id);
-  if (!t) return '<p>Técnico no encontrado</p>';
-  const localReviews = JSON.parse(localStorage.getItem('reviews') || '[]').filter((r) => r.technicianId === id);
-  const reviews = [...window.FIGXLY_MOCK.reviews.filter((r) => r.technicianId === id), ...localReviews];
-  return `<section class="grid gap-6 lg:grid-cols-[1.2fr_1fr]"><div class="rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">${t.name}</h2><p class="mt-2 text-slateInk/70">${t.bio}</p><p class="mt-4">⭐ ${t.rating} · ${t.jobs} servicios</p><button data-book="${t.id}" class="mt-6 rounded-full bg-uiBlue px-6 py-3 text-white font-semibold">Agendar</button></div><aside class="rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><h3 class="font-semibold text-xl">Reseñas</h3><div class="mt-4 space-y-3 max-h-72 overflow-auto">${reviews.map((r) => `<article class="rounded-xl bg-haze p-3"><p class="font-medium">${r.user} · ${'★'.repeat(r.rating)}</p><p class="text-sm text-slateInk/75">${r.comment}</p></article>`).join('')}</div><form id="review-form" class="mt-4 space-y-2"><input type="hidden" name="technicianId" value="${t.id}" /><input required name="user" placeholder="Tu nombre" class="w-full rounded-xl border border-slate-200 p-2" /><select name="rating" class="w-full rounded-xl border border-slate-200 p-2"><option>5</option><option>4</option><option>3</option></select><textarea required name="comment" class="w-full rounded-xl border border-slate-200 p-2" placeholder="Escribe tu reseña"></textarea><button class="rounded-xl bg-coral px-4 py-2 text-white">Enviar reseña</button></form></aside></section>`;
+function renderProProfile(id) {
+  const pro = window.FIGXLY_MOCK.getTechnician(id);
+  if (!pro) return '<p class="text-slateInk/80">No encontramos ese técnico.</p>';
+  const reviews = [...window.FIGXLY_MOCK.reviews.filter((r) => r.technicianId === id), ...STORE.reviews.filter((r) => r.technicianId === id)];
+  return `<section class="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+    <article class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <header class="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 class="text-3xl font-semibold text-slateInk">${pro.nombre}</h2><p class="text-slateInk/70">${pro.servicioLabel} · ${pro.ciudad}</p></div>
+        <div class="text-right"><p class="font-semibold">⭐ ${pro.rating} (${pro.reviewsCount})</p><p class="text-sm text-slateInk/70">${pro.distanciaKm} km de distancia</p></div>
+      </header>
+      <div class="mt-4 flex flex-wrap gap-2">${pro.tags.map((tag) => `<span class="rounded-full bg-haze px-3 py-1 text-xs font-semibold text-uiBlue">${tag}</span>`).join('')}</div>
+      <p class="mt-5 text-slateInk/80">${pro.descripcion}</p>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slateInk/60">Servicios</p><p class="mt-1 font-semibold">${pro.servicios.join(', ')}</p></div>
+        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slateInk/60">Rango de precios</p><p class="mt-1 font-semibold">$${pro.precioBase} - $${pro.precioBase + 450} MXN</p></div>
+      </div>
+      <section class="mt-7"><h3 class="text-xl font-semibold">Reviews</h3><div class="mt-3 space-y-3">${reviews.slice(0, 4).map((r) => `<div class="rounded-2xl bg-white p-3 ring-1 ring-slate-200"><p class="text-sm font-semibold">${r.user} · ⭐ ${r.rating}</p><p class="text-sm text-slateInk/70">${r.comment}</p></div>`).join('') || '<p class="text-slateInk/70">Aún no tiene reseñas.</p>'}</div></section>
+    </article>
+    <aside class="lg:sticky lg:top-24 h-fit rounded-3xl bg-white/90 p-5 ring-1 ring-slate-200/80 shadow-card">
+      <p class="text-sm text-slateInk/70">Costo base</p><p class="text-3xl font-semibold text-slateInk mt-1">$${pro.precioBase}</p>
+      <button data-book-now="${pro.id}" class="mt-5 w-full rounded-xl bg-coral px-4 py-3 text-sm font-semibold text-white">Agendar</button>
+    </aside>
+  </section>`;
 }
 
 function renderBooking(id) {
-  const t = window.FIGXLY_MOCK.getTechnician(id);
-  const slots = ['09:00', '11:00', '13:00', '16:00', '18:00'];
-  return `<section class="max-w-3xl"><h2 class="text-3xl font-semibold">Agendar con ${t?.name || ''}</h2><form id="booking-form" class="mt-6 space-y-4 rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><input type="hidden" name="id" value="${id}" /><label class="block">Fecha<input required name="date" type="date" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label><label class="block">Hora<select name="time" class="mt-1 w-full rounded-xl border border-slate-200 p-2">${slots.map((s) => `<option>${s}</option>`).join('')}</select></label><label class="block">Dirección<input required name="address" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label><label class="block">Notas<textarea name="notes" class="mt-1 w-full rounded-xl border border-slate-200 p-2"></textarea></label><button class="rounded-xl bg-uiBlue px-5 py-3 text-white">Continuar</button></form></section>`;
+  const pro = window.FIGXLY_MOCK.getTechnician(id);
+  if (!pro) return '<p>Técnico no encontrado.</p>';
+  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Agendar cita con ${pro.nombre}</h2>
+    <form id="booking-form" class="mt-6 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="proId" value="${pro.id}" />
+      <label class="block">Fecha<select name="date" required class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white">${pro.disponibilidad.map((d) => `<option>${d}</option>`).join('')}</select></label>
+      <label class="block">Hora<select name="time" required class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>09:00</option><option>11:00</option><option>13:00</option><option>16:00</option></select></label>
+      <label class="sm:col-span-2">Dirección<input name="address" required placeholder="Calle, número, colonia" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <label class="sm:col-span-2">Notas<textarea name="notes" rows="3" placeholder="Detalles de la reparación" class="mt-1 w-full rounded-xl border border-slate-200 p-2"></textarea></label>
+      <label class="block">Tipo de visita<select name="visitType" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option value="normal">Normal</option><option value="urgente">Urgente</option></select></label>
+      <div class="rounded-2xl bg-haze p-3"><p class="text-sm text-slateInk/70">Resumen estimado</p><p class="font-semibold">$${pro.precioBase} base + urgencia si aplica.</p></div>
+      <button class="sm:col-span-2 rounded-xl bg-uiBlue px-4 py-3 text-sm font-semibold text-white">Continuar a pago</button>
+    </form>
+  </section>`;
 }
 
-function renderCheckout() {
-  const b = state.checkout;
-  if (!b) return '<p>No hay cita seleccionada.</p>';
-  return `<section class="max-w-3xl"><h2 class="text-3xl font-semibold">Checkout</h2><div class="mt-6 rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><p class="text-slateInk/70">Resumen: ${b.date} ${b.time} · ${b.address}</p><form id="checkout-form" class="mt-4 space-y-3"><label><input type="radio" name="payment" value="Tarjeta" checked /> Tarjeta</label><label class="block"><input type="radio" name="payment" value="Efectivo" /> Efectivo</label><label class="block"><input type="radio" name="payment" value="Transferencia" /> Transferencia</label><button class="rounded-xl bg-coral px-5 py-3 text-white">Confirmar</button></form></div></section>`;
+function renderPayment(bookingId) {
+  const booking = STORE.bookings.find((b) => b.id === bookingId);
+  if (!booking) return '<p class="text-slateInk/80">No encontramos esta reserva.</p>';
+  if (booking.status === 'paid') {
+    return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card text-center"><h2 class="text-3xl font-semibold">Pago confirmado</h2><p class="mt-2 text-slateInk/70">Tu cita con ${booking.proName} quedó pagada.</p><button data-go-review="${booking.id}" class="mt-6 rounded-xl bg-coral px-5 py-3 font-semibold text-white">Calificar servicio</button></section>`;
+  }
+  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Checkout</h2>
+    <p class="mt-1 text-slateInk/70">Booking ${booking.id.slice(-8)} · ${booking.proName}</p>
+    <form id="payment-form" data-booking-id="${booking.id}" class="mt-5 grid gap-4 sm:grid-cols-2">
+      <label>Método<select name="method" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>tarjeta</option><option>efectivo</option><option>transferencia</option></select></label>
+      <label>Titular<input name="holder" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <label>Número<input name="card" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" placeholder="4242 4242 4242 4242" /></label>
+      <label>CVV<input name="cvv" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <div class="sm:col-span-2 rounded-2xl bg-haze p-3"><p class="font-semibold">Total a pagar: $${booking.estimate} MXN</p></div>
+      <button class="sm:col-span-2 rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Pagar</button>
+    </form>
+  </section>`;
 }
 
-const renderSuccess = () => `<section class="max-w-2xl rounded-3xl bg-white/85 p-8 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">¡Cita confirmada!</h2><p class="mt-2 text-slateInk/70">Tu solicitud fue enviada exitosamente.</p><button data-nav-to="/mis-citas" class="mt-6 rounded-xl bg-uiBlue px-5 py-3 text-white">Ver mis citas</button></section>`;
-
-function renderSupport() {
-  return `<section class="grid gap-6 lg:grid-cols-2"><div class="rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Asistencia</h2><ul class="mt-4 list-disc pl-6 text-slateInk/80"><li>¿Cómo reagendar una cita?</li><li>¿Cómo cancelar sin costo?</li><li>¿Cómo solicitar factura?</li></ul><button id="open-ticket" class="mt-5 rounded-xl bg-uiBlue px-4 py-2 text-white">Abrir ticket</button></div><form id="claim-form" class="rounded-3xl bg-white/85 p-6 ring-1 ring-slate-200/80 shadow-card"><h3 class="text-xl font-semibold">Reclamos</h3><input name="subject" required class="mt-4 w-full rounded-xl border border-slate-200 p-2" placeholder="Asunto" /><textarea name="details" required class="mt-3 w-full rounded-xl border border-slate-200 p-2" placeholder="Cuéntanos qué pasó"></textarea><button class="mt-3 rounded-xl bg-coral px-4 py-2 text-white">Enviar reclamo</button></form></section>`;
+function renderReview(bookingId) {
+  const booking = STORE.bookings.find((b) => b.id === bookingId);
+  if (!booking) return '<p>Reserva no encontrada.</p>';
+  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Califica tu servicio</h2>
+    <p class="mt-1 text-slateInk/70">${booking.proName} · ${booking.date} ${booking.time}</p>
+    <form id="review-form" data-booking-id="${booking.id}" class="mt-6 space-y-4">
+      <input type="hidden" name="rating" value="5" />
+      <div class="flex gap-2 text-2xl" data-stars>${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}">⭐</button>`).join('')}</div>
+      <textarea name="comment" required rows="4" placeholder="Cuéntanos cómo fue tu experiencia" class="w-full rounded-xl border border-slate-200 p-3"></textarea>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="reportIssue" /> Reportar un problema</label>
+      <button class="rounded-xl bg-coral px-4 py-3 font-semibold text-white">Enviar reseña</button>
+    </form>
+  </section>`;
 }
 
-function renderBookings() {
+function renderSupport(params) {
+  const bookingId = params.get('bookingId') || '';
+  return `<section class="mx-auto max-w-3xl grid gap-6 lg:grid-cols-2">
+    <article class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <h2 class="text-2xl font-semibold">Soporte Figxly</h2>
+      <p class="mt-2 text-slateInk/70">Abrimos un ticket y te respondemos por correo en menos de 12h.</p>
+      <ul class="mt-4 list-disc pl-5 text-sm text-slateInk/70"><li>Estado de cita</li><li>Cobro incorrecto</li><li>Calidad del servicio</li></ul>
+    </article>
+    <form id="support-form" class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <input type="hidden" name="bookingId" value="${bookingId}" />
+      <label class="block">Motivo<select name="reason" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>Cobro</option><option>Incumplimiento</option><option>Seguridad</option><option>Otro</option></select></label>
+      <label class="mt-3 block">Descripción<textarea name="description" required rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-2" placeholder="Describe lo sucedido"></textarea></label>
+      <label class="mt-3 block">Adjuntar evidencia (UI)<input type="file" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <button class="mt-4 w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Enviar reclamo</button>
+    </form>
+  </section>`;
+}
+
+function renderOrders() {
   const bookings = STORE.bookings;
-  return `<section><h2 class="text-3xl font-semibold">Mis citas</h2><div class="mt-5 space-y-3">${bookings.map((b) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${b.techName}</p><p class="text-slateInk/70">${b.date} · ${b.time} · ${b.address}</p><p class="text-sm">Pago: ${b.payment || 'Pendiente'}</p></article>`).join('') || '<p class="text-slateInk/70">Aún no tienes citas.</p>'}</div></section>`;
+  return `<section><h2 class="text-3xl font-semibold">Mis citas</h2><div class="mt-5 space-y-3">${bookings.map((b) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${b.proName}</p><p class="text-sm text-slateInk/70">${b.date} ${b.time} · ${b.address}</p><p class="text-sm">Estado: <strong>${b.status}</strong></p></article>`).join('') || '<p class="text-slateInk/70">Aún no tienes citas.</p>'}</div></section>`;
+}
+
+function renderTickets() {
+  const tickets = STORE.tickets;
+  return `<section><h2 class="text-3xl font-semibold">Mis reclamos</h2><div class="mt-5 space-y-3">${tickets.map((t) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${t.folio} · ${t.reason}</p><p class="text-sm text-slateInk/70">${t.description}</p><p class="text-sm">Estado: ${t.status}</p></article>`).join('') || '<p class="text-slateInk/70">No tienes reclamos activos.</p>'}</div></section>`;
 }
 
 function renderRoute() {
@@ -106,14 +245,14 @@ function renderRoute() {
   const seg = path.split('/').filter(Boolean);
   let html = '';
   if (path === '/') html = renderHome();
-  else if (seg[0] === 'buscar') html = renderSearch(params);
-  else if (seg[0] === 'categoria') html = renderCategory(seg[1]);
-  else if (seg[0] === 'tecnico') html = renderTech(seg[1]);
-  else if (seg[0] === 'agendar') html = renderBooking(seg[1]);
-  else if (seg[0] === 'checkout') html = renderCheckout();
-  else if (seg[0] === 'exito') html = renderSuccess();
-  else if (seg[0] === 'soporte') html = renderSupport();
-  else if (seg[0] === 'mis-citas') html = renderBookings();
+  else if (seg[0] === 'results') html = renderResults(params);
+  else if (seg[0] === 'pro') html = renderProProfile(seg[1]);
+  else if (seg[0] === 'booking') html = renderBooking(seg[1]);
+  else if (seg[0] === 'payment') html = renderPayment(seg[1]);
+  else if (seg[0] === 'review') html = renderReview(seg[1]);
+  else if (seg[0] === 'support') html = renderSupport(params);
+  else if (seg[0] === 'orders') html = renderOrders();
+  else if (seg[0] === 'tickets') html = renderTickets();
   else html = renderHome();
   app.innerHTML = html;
   bindEvents();
@@ -123,15 +262,12 @@ function renderRoute() {
 
 function updateActiveNav(path) {
   qsa('[data-nav]').forEach((a) => {
-    const on = a.getAttribute('href') === `#${path}`;
+    const on = path.startsWith(a.dataset.nav || '/__none__');
     a.setAttribute('aria-current', on ? 'page' : 'false');
   });
 }
 
 function setupImageFallbacks() {
-  qsa('img[data-fallback="cat"]').forEach((img) => {
-    img.addEventListener('error', () => img.nextElementSibling?.style.setProperty('display', 'block'), { once: true });
-  });
   qsa('img[data-fallback="phone"]').forEach((img) => {
     img.addEventListener('error', () => {
       img.classList.add('hidden');
@@ -143,68 +279,111 @@ function setupImageFallbacks() {
 function bindEvents() {
   qs('#search-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const data = Object.fromEntries(fd.entries());
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
     STORE.lastSearch = data;
-    STORE.selectedLocation = data.loc || STORE.selectedLocation;
-    navTo(`/buscar?q=${encodeURIComponent(data.q || '')}&loc=${encodeURIComponent(data.loc || '')}&date=${encodeURIComponent(data.date || '')}`);
+    const p = new URLSearchParams(data);
+    navTo(`/results?${p.toString()}`);
   });
+  qsa('[data-service]').forEach((b) => b.addEventListener('click', () => navTo(`/results?service=${encodeURIComponent(b.dataset.service)}`)));
+  qsa('[data-go-pro]').forEach((b) => b.addEventListener('click', () => navTo(`/pro/${b.dataset.goPro}`)));
+  qs('[data-book-now]')?.addEventListener('click', (e) => navTo(`/booking/${e.currentTarget.dataset.bookNow}`));
 
-  qsa('[data-category]').forEach((b) => b.addEventListener('click', () => navTo(`/categoria/${b.dataset.category}`)));
-  qsa('[data-tech-id]').forEach((b) => b.addEventListener('click', () => navTo(`/tecnico/${b.dataset.techId}`)));
-  qsa('[data-book]').forEach((b) => b.addEventListener('click', () => navTo(`/agendar/${b.dataset.book}`)));
-  qs('[data-nav-to]')?.addEventListener('click', (e) => navTo(e.currentTarget.dataset.navTo));
+  qs('#filters-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const current = parseHash().params;
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const p = new URLSearchParams({
+      q: current.get('q') || '',
+      loc: current.get('loc') || '',
+      date: current.get('date') || '',
+      service: data.service || '',
+      minRating: data.minRating || '0',
+      maxPrice: data.maxPrice || '10000',
+      verified: data.verified ? '1' : '0',
+      today: data.today ? '1' : '0',
+    });
+    navTo(`/results?${p.toString()}`);
+  });
 
   qs('#booking-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const raw = Object.fromEntries(fd.entries());
-    const tech = window.FIGXLY_MOCK.getTechnician(raw.id);
-    state.checkout = { ...raw, techName: tech?.name || 'Técnico' };
-    navTo('/checkout');
+    const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const pro = window.FIGXLY_MOCK.getTechnician(payload.proId);
+    const estimate = pro.precioBase + (payload.visitType === 'urgente' ? 180 : 0);
+    const booking = {
+      id: uid('bk'),
+      proId: pro.id,
+      proName: pro.nombre,
+      date: payload.date,
+      time: payload.time,
+      address: payload.address,
+      notes: payload.notes,
+      visitType: payload.visitType,
+      estimate,
+      status: 'pending_payment',
+      createdAt: new Date().toISOString(),
+    };
+    STORE.bookings = [booking, ...STORE.bookings];
+    state.bookingDraft = booking;
+    navTo(`/payment/${booking.id}`);
   });
 
-  qs('#checkout-form')?.addEventListener('submit', (e) => {
+  qs('#payment-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const payment = new FormData(e.currentTarget).get('payment');
-    const bookings = STORE.bookings;
-    bookings.unshift({ ...state.checkout, payment, createdAt: new Date().toISOString() });
-    STORE.bookings = bookings;
-    navTo('/exito');
+    const bookingId = e.currentTarget.dataset.bookingId;
+    const method = new FormData(e.currentTarget).get('method');
+    STORE.bookings = STORE.bookings.map((b) => (b.id === bookingId ? { ...b, method, status: 'paid', paidAt: new Date().toISOString() } : b));
+    toast('Pago realizado con éxito');
+    navTo(`/review/${bookingId}`);
+  });
+
+  qsa('[data-go-review]').forEach((b) => b.addEventListener('click', () => navTo(`/review/${b.dataset.goReview}`)));
+
+  qsa('[data-star]').forEach((starBtn) => {
+    starBtn.addEventListener('click', () => {
+      state.activeStars = Number(starBtn.dataset.star);
+      qs('#review-form input[name="rating"]').value = String(state.activeStars);
+      qsa('[data-star]').forEach((el) => el.classList.toggle('opacity-40', Number(el.dataset.star) > state.activeStars));
+    });
   });
 
   qs('#review-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
+    const bookingId = e.currentTarget.dataset.bookingId;
+    const booking = STORE.bookings.find((b) => b.id === bookingId);
     const review = Object.fromEntries(new FormData(e.currentTarget).entries());
-    const list = JSON.parse(localStorage.getItem('reviews') || '[]');
-    list.unshift({ ...review, rating: Number(review.rating), id: crypto.randomUUID() });
-    localStorage.setItem('reviews', JSON.stringify(list));
-    toast('Reseña enviada');
-    renderRoute();
+    STORE.reviews = [{ id: uid('rv'), technicianId: booking.proId, bookingId, user: STORE.session.name, rating: Number(review.rating), comment: review.comment, createdAt: new Date().toISOString() }, ...STORE.reviews];
+    if (review.reportIssue) {
+      navTo(`/support?bookingId=${encodeURIComponent(bookingId)}`);
+      return;
+    }
+    toast('Gracias por tu reseña');
+    navTo('/');
   });
 
-  qs('#claim-form')?.addEventListener('submit', (e) => {
+  qs('#support-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const claim = Object.fromEntries(new FormData(e.currentTarget).entries());
-    const claims = JSON.parse(localStorage.getItem('claims') || '[]');
-    claims.unshift({ ...claim, id: crypto.randomUUID(), createdAt: new Date().toISOString() });
-    localStorage.setItem('claims', JSON.stringify(claims));
-    toast('Reclamo registrado');
-    e.currentTarget.reset();
+    const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const ticket = { id: uid('tk'), folio: `FGX-${Math.floor(100000 + Math.random() * 900000)}`, status: 'open', createdAt: new Date().toISOString(), ...payload };
+    STORE.tickets = [ticket, ...STORE.tickets];
+    toast(`Ticket creado: ${ticket.folio}`);
+    navTo('/tickets');
   });
-
-  qs('#open-ticket')?.addEventListener('click', () => toast('Ticket de asistencia abierto'));
 }
 
 function setupChrome() {
   const btn = qs('#btn-mobile-menu');
   const panel = qs('#mobile-menu');
+  const profileBtn = qs('#profile-btn');
+  const profileMenu = qs('#profile-menu');
+
   btn?.addEventListener('click', () => {
     panel?.classList.toggle('hidden');
     btn.setAttribute('aria-expanded', String(btn.getAttribute('aria-expanded') !== 'true'));
   });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') panel?.classList.add('hidden');
+  profileBtn?.addEventListener('click', () => profileMenu?.classList.toggle('hidden'));
+  document.addEventListener('click', (e) => {
+    if (!profileBtn?.contains(e.target) && !profileMenu?.contains(e.target)) profileMenu?.classList.add('hidden');
   });
 }
 
