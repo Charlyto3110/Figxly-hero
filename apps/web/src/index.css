@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: Inter, system-ui, sans-serif; }
+
+.card { @apply bg-white rounded-3xl shadow-sm border border-haze2 p-5; }
+.input { @apply w-full rounded-full border border-haze2 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-uiBlue; }
+.btn-primary { @apply rounded-full bg-uiBlue text-white px-5 py-2 hover:bg-uiBlue2; }
+.btn-coral { @apply rounded-full bg-coral text-white px-5 py-2 hover:opacity-90; }

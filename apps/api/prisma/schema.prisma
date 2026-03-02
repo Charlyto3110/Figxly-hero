@@ -1,0 +1,139 @@
+generator client { provider = "prisma-client-js" }
+
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum Role { customer provider admin }
+enum RequestStatus { requested confirmed completed cancelled }
+enum BookingStatus { draft requested confirmed completed cancelled }
+enum TicketStatus { open in_progress resolved closed }
+enum PaymentStatus { pending authorized paid failed refunded }
+enum ClaimStatus { open reviewing resolved rejected }
+
+model User {
+  id String @id @default(cuid())
+  role Role @default(customer)
+  name String
+  email String @unique
+  passwordHash String
+  providerProfile ProviderProfile?
+  requests Request[] @relation("CustomerRequests")
+  bookings Booking[] @relation("CustomerBookings")
+  providerBookings Booking[] @relation("ProviderBookings")
+  reviews Review[]
+  tickets SupportTicket[]
+  claims Claim[] @relation("CustomerClaims")
+  createdAt DateTime @default(now())
+}
+
+model ProviderProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  bio String
+  city String
+  skills String
+  hourlyRate Int?
+  user User @relation(fields: [userId], references: [id])
+  services ProviderService[]
+  requests Request[]
+  reviews Review[]
+}
+
+model ServiceCategory {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  providerServices ProviderService[]
+  requests Request[]
+  bookings Booking[]
+}
+
+model ProviderService {
+  id String @id @default(cuid())
+  providerId String
+  categoryId String
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+  category ServiceCategory @relation(fields: [categoryId], references: [id])
+  @@unique([providerId, categoryId])
+}
+
+model Request {
+  id String @id @default(cuid())
+  customerId String
+  providerId String?
+  categoryId String
+  city String
+  date DateTime
+  notes String?
+  status RequestStatus @default(requested)
+  customer User @relation("CustomerRequests", fields: [customerId], references: [id])
+  provider ProviderProfile? @relation(fields: [providerId], references: [id])
+  category ServiceCategory @relation(fields: [categoryId], references: [id])
+}
+
+model Booking {
+  id String @id @default(cuid())
+  customerId String
+  providerId String
+  categoryId String
+  date DateTime
+  duration Int
+  notes String?
+  city String
+  status BookingStatus @default(requested)
+  customer User @relation("CustomerBookings", fields: [customerId], references: [id])
+  provider User @relation("ProviderBookings", fields: [providerId], references: [id])
+  category ServiceCategory @relation(fields: [categoryId], references: [id])
+  review Review?
+  payment Payment?
+  claims Claim[]
+  @@index([date])
+  @@unique([providerId, date])
+}
+
+model Review {
+  id String @id @default(cuid())
+  bookingId String @unique
+  providerId String
+  customerId String
+  rating Int
+  comment String
+  booking Booking @relation(fields: [bookingId], references: [id])
+  provider ProviderProfile @relation(fields: [providerId], references: [id])
+  customer User @relation(fields: [customerId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model SupportTicket {
+  id String @id @default(cuid())
+  userId String
+  subject String
+  message String
+  status TicketStatus @default(open)
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Payment {
+  id String @id @default(cuid())
+  bookingId String @unique
+  amount Int
+  currency String @default("USD")
+  provider String
+  method String
+  status PaymentStatus @default(pending)
+  externalId String?
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Claim {
+  id String @id @default(cuid())
+  bookingId String
+  customerId String
+  reason String
+  description String
+  evidenceUrls String?
+  status ClaimStatus @default(open)
+  createdAt DateTime @default(now())
+  booking Booking @relation(fields: [bookingId], references: [id])
+  customer User @relation("CustomerClaims", fields: [customerId], references: [id])
+}
