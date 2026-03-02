@@ -6,18 +6,11 @@
     <title>Figxly — Hero</title>
     <meta name="description" content="Figxly: El talento que necesitas, a tu servicio con un clic." />
 
-    <!-- Font (texto OK en PR) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
-
-    <!-- Tailwind CDN (oficial) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- Tailwind config inline -->
     <script>
       tailwind.config = {
         theme: {
@@ -42,517 +35,51 @@
         },
       };
     </script>
-
     <link rel="stylesheet" href="./styles.css" />
   </head>
 
   <body class="min-h-screen bg-white font-sans text-ink antialiased">
-    <!-- Page background (blobs + haze) -->
     <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <!-- base subtle gradient -->
       <div class="absolute inset-0 bg-[radial-gradient(1200px_600px_at_10%_90%,rgba(140,185,255,0.35),transparent_60%),radial-gradient(900px_500px_at_80%_25%,rgba(160,200,255,0.22),transparent_55%)]"></div>
-
-      <!-- soft waves / blobs -->
       <div class="absolute -left-32 top-44 h-[520px] w-[520px] rounded-full bg-[#CFE3FF] opacity-40 blur-3xl"></div>
       <div class="absolute left-56 top-72 h-[520px] w-[520px] rounded-full bg-[#DCEEFF] opacity-35 blur-3xl"></div>
       <div class="absolute right-[-160px] top-28 h-[620px] w-[620px] rounded-full bg-[#CFE3FF] opacity-35 blur-3xl"></div>
-
-      <!-- extra soft band like the reference wave -->
       <div class="absolute left-0 top-[340px] h-[420px] w-[860px] rotate-[-8deg] rounded-[999px] bg-[#DDEBFF] opacity-25 blur-3xl"></div>
-
-      <!-- subtle bottom sheen -->
       <div class="absolute bottom-[-240px] left-1/2 h-[520px] w-[1200px] -translate-x-1/2 rounded-[999px] bg-[#DCEEFF] opacity-25 blur-3xl"></div>
     </div>
 
-    <!-- Top container -->
-    <div class="mx-auto max-w-[1200px] px-6 pb-12 pt-8">
-      <!-- Header -->
-      <header class="flex items-center justify-between py-6">
-        <!-- Brand -->
-        <a class="inline-flex items-center gap-3 select-none" href="#" aria-label="Figxly">
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="1500 1000 7000 6000"
-    class="h-12.05 w-12.05 shrink-0 text-black"
-    aria-hidden="true"
-  >
-    <g transform="translate(0,10240) scale(1,-1)" fill="currentColor" stroke="none">
-      <path d="M4978 8930 c-100 -18 -227 -71 -313 -130 -56 -39 -1078 -1064 -1121
--1125 -56 -79 -123 -228 -150 -333 -60 -235 -35 -503 65 -717 84 -179 88 -184
-895 -993 419 -419 766 -762 772 -762 11 0 919 906 919 918 0 4 -96 101 -213
-217 l-213 209 -244 -244 -245 -245 -235 235 -235 235 247 247 248 248 -195
-196 c-107 108 -181 187 -165 176 34 -25 191 -177 820 -797 246 -242 452 -441
-459 -443 6 -1 142 129 302 290 305 306 350 362 421 515 19 42 46 119 61 172
-22 84 25 117 26 266 1 188 -14 274 -76 417 -72 171 -80 180 -623 727 -280 282
--539 536 -575 563 -74 57 -197 118 -285 143 -69 19 -276 28 -347 15z m207
--609 c27 -13 198 -177 526 -507 451 -454 488 -494 514 -554 22 -50 29 -84 33
--155 8 -157 -34 -259 -160 -391 l-82 -85 -428 428 c-373 373 -432 428 -458
-428 -26 0 -85 -55 -461 -430 l-430 -430 -83 87 c-129 134 -174 244 -163 398 7
-98 19 136 67 207 54 81 987 1010 1020 1016 48 8 65 6 105 -12z"/>
-    </g>
-  </svg>
+    <div class="mx-auto max-w-[1200px] px-6 pb-12 pt-4">
+      <header class="sticky top-0 z-40 flex items-center justify-between py-6 backdrop-blur-sm">
+        <a class="inline-flex items-center gap-3 select-none" href="#/" aria-label="Figxly">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="1500 1000 7000 6000" class="h-12.05 w-12.05 shrink-0 text-black" aria-hidden="true">
+            <g transform="translate(0,10240) scale(1,-1)" fill="currentColor" stroke="none">
+              <path d="M4978 8930 c-100 -18 -227 -71 -313 -130 -56 -39 -1078 -1064 -1121 -1125 -56 -79 -123 -228 -150 -333 -60 -235 -35 -503 65 -717 84 -179 88 -184 895 -993 419 -419 766 -762 772 -762 11 0 919 906 919 918 0 4 -96 101 -213 217 l-213 209 -244 -244 -245 -245 -235 235 -235 235 247 247 248 248 -195 196 c-107 108 -181 187 -165 176 34 -25 191 -177 820 -797 246 -242 452 -441 459 -443 6 -1 142 129 302 290 305 306 350 362 421 515 19 42 46 119 61 172 22 84 25 117 26 266 1 188 -14 274 -76 417 -72 171 -80 180 -623 727 -280 282 -539 536 -575 563 -74 57 -197 118 -285 143 -69 19 -276 28 -347 15z m207 -609 c27 -13 198 -177 526 -507 451 -454 488 -494 514 -554 22 -50 29 -84 33 -155 8 -157 -34 -259 -160 -391 l-82 -85 -428 428 c-373 373 -432 428 -458 428 -26 0 -85 -55 -461 -430 l-430 -430 -83 87 c-129 134 -174 244 -163 398 7 98 19 136 67 207 54 81 987 1010 1020 1016 48 8 65 6 105 -12z" />
+            </g>
+          </svg>
+          <span class="text-[30px] -ml-2 font-semibold leading-none tracking-[-0.02em] text-slateInk">Figxly</span>
+        </a>
 
-  <span class="text-[30px] -ml-2 font-semibold leading-none tracking-[-0.02em] text-slateInk">
-    Figxly
-  </span>
-</a>
-        <!-- Desktop nav -->
-        <nav class="hidden items-center gap-8 md:flex">
-          <a href="#" class="text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Servicios</a>
-          <a href="#" class="text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Cómo funciona</a>
-
-          <div class="flex items-center gap-3">
-            <button
-              type="button"
-              class="rounded-full border border-slate-200/80 bg-white/60 px-5 py-2 text-[14px] font-medium text-slateInk/80 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur hover:bg-white/75 hover:text-slateInk transition focus:outline-none focus:ring-4 focus:ring-blue-200/50"
-              id="btn-login"
-            >
-              Iniciar sesión
-            </button>
-            <button
-              type="button"
-              class="rounded-full bg-uiBlue px-5 py-2 text-[14px] font-semibold text-white shadow-[0_12px_35px_rgba(11,43,92,0.25)] hover:bg-uiBlue2 transition focus:outline-none focus:ring-4 focus:ring-blue-200/50"
-              id="btn-signup"
-            >
-              Regístrate
-            </button>
-          </div>
+        <nav class="hidden items-center gap-8 md:flex" aria-label="Principal">
+          <a data-nav href="#/" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Inicio</a>
+          <a data-nav href="#/mis-citas" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Mis citas</a>
+          <a data-nav href="#/soporte" class="nav-link text-[15px] font-medium text-slateInk/80 hover:text-slateInk transition">Asistencia</a>
         </nav>
 
-        <!-- Mobile menu (mock) -->
-        <button
-          type="button"
-          class="md:hidden inline-flex items-center justify-center rounded-full border border-slate-200/80 bg-white/70 px-4 py-2 text-[14px] font-medium text-slateInk/80 shadow-[0_10px_30px_rgba(15,23,42,0.06)] backdrop-blur hover:bg-white/85 transition focus:outline-none focus:ring-4 focus:ring-blue-200/50"
-          id="btn-mobile-menu"
-          aria-expanded="false"
-          aria-controls="mobile-menu"
-        >
-          <span class="mr-2">Menú</span>
-          <span aria-hidden="true">☰</span>
-        </button>
+        <button id="btn-mobile-menu" type="button" aria-expanded="false" class="md:hidden inline-flex items-center justify-center rounded-full border border-slate-200/80 bg-white/70 px-4 py-2 text-[14px] font-medium text-slateInk/80">Menú</button>
       </header>
 
-      <!-- Mobile nav panel -->
-      <div
-        id="mobile-menu"
-        class="mt-4 hidden rounded-2xl border border-slate-200/70 bg-white/70 p-4 shadow-card backdrop-blur md:hidden"
-      >
-        <div class="flex flex-col gap-3">
-          <a href="#" class="rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80 hover:bg-white/80 hover:text-slateInk transition">Servicios</a>
-          <a href="#" class="rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80 hover:bg-white/80 hover:text-slateInk transition">Cómo funciona</a>
-          <div class="h-px bg-slate-200/70 my-1"></div>
-          <button
-            type="button"
-            class="rounded-xl border border-slate-200/80 bg-white/75 px-4 py-2 text-[14px] font-medium text-slateInk/80 hover:bg-white transition focus:outline-none focus:ring-4 focus:ring-blue-200/50"
-            data-mobile-login
-          >
-            Iniciar sesión
-          </button>
-          <button
-            type="button"
-            class="rounded-xl bg-uiBlue px-4 py-2 text-[14px] font-semibold text-white hover:bg-uiBlue2 transition focus:outline-none focus:ring-4 focus:ring-blue-200/50"
-            data-mobile-signup
-          >
-            Regístrate
-          </button>
-        </div>
+      <div id="mobile-menu" class="md:hidden hidden mt-2 rounded-2xl border border-slate-200/70 bg-white/85 p-3 shadow-card backdrop-blur">
+        <a data-nav href="#/" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Inicio</a>
+        <a data-nav href="#/mis-citas" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Mis citas</a>
+        <a data-nav href="#/soporte" class="block rounded-xl px-3 py-2 text-[15px] font-medium text-slateInk/80">Asistencia</a>
       </div>
 
-      <!-- Hero -->
-      <main class="mt-20">
-        <section class="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 -mt-4">
-          <!-- Left -->
-          <div class="max-w-[640px]">
-            <h1
-              class="text-slateInk tracking-[-0.03em] leading-[1.06] font-semibold
-                     text-[32px] sm:text-[40px] lg:text-[48px]"
-            >
-              El talento que necesitas,<br />
-              a tu servicio con un clic
-            </h1>
-
-            <!-- Search pill -->
-            <form class="mt-8" id="search-form" autocomplete="off">
-              <div
-                class="relative flex items-center gap-0 rounded-full bg-white/80 shadow-pill backdrop-blur
-                       ring-1 ring-slate-200/70 px-4 py-3 sm:px-5 sm:py-4"
-              >
-                <!-- Segment: service -->
-                <div class="flex min-w-0 flex-[2] items-center gap-3 pr-4">
-                  <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                    <!-- search icon -->
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 21l-4.3-4.3" stroke-linecap="round" />
-                      <circle cx="11" cy="11" r="7" />
-                    </svg>
-                  </span>
-                  <label class="sr-only" for="q">¿Qué servicio necesitas?</label>
-                  <input
-                    id="q"
-                    name="q"
-                    type="text"
-                    placeholder="¿Qué servicio necesitas?"
-                    class="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-slateInk/80 placeholder:text-slateInk/45 outline-none"
-                  />
-                </div>
-
-                <!-- divider -->
-                <div class="hidden sm:block h-8 w-px bg-slate-200/80"></div>
-
-                <!-- Segment: location -->
-                <div class="relative hidden sm:flex flex-1 items-center gap-3 px-4">
-                  <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                    <!-- pin icon -->
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z" />
-                      <circle cx="12" cy="10" r="2.5" />
-                    </svg>
-                  </span>
-
-                  <button
-                    type="button"
-                    id="locationBtn"
-                    class="min-w-0 flex-1 text-left text-[15px] font-medium text-slateInk/70 hover:text-slateInk transition outline-none"
-                    aria-haspopup="listbox"
-                    aria-expanded="false"
-                  >
-                    <span id="locationLabel" class="truncate">Ubicación</span>
-                  </button>
-
-                  <!-- dropdown -->
-                  <div
-                    id="locationMenu"
-                    class="absolute left-4 top-[64px] z-20 hidden w-[260px] rounded-2xl border border-slate-200/70 bg-white/90 p-2 shadow-card backdrop-blur"
-                    role="listbox"
-                    aria-label="Selecciona ubicación"
-                  >
-                    <button type="button" class="dd-item" data-city="Ciudad de México">Ciudad de México</button>
-                    <button type="button" class="dd-item" data-city="Guadalajara">Guadalajara</button>
-                    <button type="button" class="dd-item" data-city="Monterrey">Monterrey</button>
-                  </div>
-                </div>
-
-                <!-- divider -->
-                <div class="hidden sm:block h-8 w-px bg-slate-200/80"></div>
-
-                <!-- Segment: date -->
-                <div class="relative hidden sm:flex flex-1 items-center gap-3 pl-4 pr-3">
-                  <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                    <!-- calendar icon -->
-                    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M8 2v4M16 2v4" stroke-linecap="round" />
-                      <path d="M3 9h18" stroke-linecap="round" />
-                      <path d="M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                    </svg>
-                  </span>
-
-                  <button
-                    type="button"
-                    id="dateBtn"
-                    class="min-w-0 flex-1 text-left text-[15px] font-medium text-slateInk/70 hover:text-slateInk transition outline-none"
-                  >
-                    <span id="dateLabel" class="truncate">Elige fecha</span>
-                  </button>
-
-                  <!-- real date input (hidden but functional) -->
-                  <input
-                    id="dateInput"
-                    type="date"
-                    class="absolute inset-0 opacity-0 cursor-pointer"
-                    aria-label="Elige fecha"
-                  />
-                </div>
-
-                <!-- CTA button -->
-                <div class="flex items-center justify-end">
-                  <button
-                    type="submit"
-                    class="ml-2 sm:ml-3 w-[118px] sm:w-[140px] rounded-full bg-coral px-5 py-3 sm:py-3.5
-                           text-[14px] font-semibold text-white shadow-[0_14px_40px_rgba(229,83,92,0.28)]
-                           hover:brightness-[1.02] active:translate-y-[1px] transition
-                           focus:outline-none focus:ring-4 focus:ring-rose-200/60"
-                  >
-                    Buscar
-                  </button>
-                </div>
-              </div>
-
-              <!-- Mobile stacked inputs -->
-              <div class="mt-4 grid gap-3 sm:hidden">
-                <div class="rounded-2xl bg-white/80 ring-1 ring-slate-200/70 shadow-card backdrop-blur p-3">
-                  <div class="flex items-center gap-3">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                      <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 21l-4.3-4.3" stroke-linecap="round" />
-                        <circle cx="11" cy="11" r="7" />
-                      </svg>
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="¿Qué servicio necesitas?"
-                      class="w-full bg-transparent text-[15px] font-medium text-slateInk/80 placeholder:text-slateInk/45 outline-none"
-                      aria-label="¿Qué servicio necesitas?"
-                    />
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    class="rounded-2xl bg-white/80 ring-1 ring-slate-200/70 shadow-card backdrop-blur p-3 text-left"
-                    id="locationBtnMobile"
-                    aria-expanded="false"
-                    aria-controls="locationMenuMobile"
-                  >
-                    <div class="flex items-center gap-3">
-                      <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 21s7-4.5 7-11a7 7 0 10-14 0c0 6.5 7 11 7 11z" />
-                          <circle cx="12" cy="10" r="2.5" />
-                        </svg>
-                      </span>
-                      <span class="text-[14px] font-medium text-slateInk/70" id="locationLabelMobile">Ubicación</span>
-                    </div>
-                  </button>
-
-                  <div class="relative rounded-2xl bg-white/80 ring-1 ring-slate-200/70 shadow-card backdrop-blur p-3">
-                    <div class="flex items-center gap-3">
-                      <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100/70 text-slateInk/70">
-                        <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M8 2v4M16 2v4" stroke-linecap="round" />
-                          <path d="M3 9h18" stroke-linecap="round" />
-                          <path d="M5 6h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
-                        </svg>
-                      </span>
-                      <span class="text-[14px] font-medium text-slateInk/70" id="dateLabelMobile">Elige fecha</span>
-                    </div>
-                    <input id="dateInputMobile" type="date" class="absolute inset-0 opacity-0 cursor-pointer" aria-label="Elige fecha" />
-                  </div>
-
-                  <div id="locationMenuMobile" class="col-span-2 hidden rounded-2xl border border-slate-200/70 bg-white/90 p-2 shadow-card backdrop-blur">
-                    <button type="button" class="dd-item" data-city="Ciudad de México">Ciudad de México</button>
-                    <button type="button" class="dd-item" data-city="Guadalajara">Guadalajara</button>
-                    <button type="button" class="dd-item" data-city="Monterrey">Monterrey</button>
-                  </div>
-
-                  <button
-                    type="submit"
-                    class="col-span-2 w-full rounded-2xl bg-coral px-5 py-3 text-[14px] font-semibold text-white shadow-[0_14px_40px_rgba(229,83,92,0.28)]
-                           hover:brightness-[1.02] active:translate-y-[1px] transition focus:outline-none focus:ring-4 focus:ring-rose-200/60"
-                  >
-                    Buscar
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            <!-- Categories row (4 small cards) -->
-            <div class="mt-10">
-              <div class="flex flex-wrap items-start gap-7 sm:gap-8">
-                <!-- Card template -->
-                <div class="cat-card">
-                  <div class="cat-avatar">
-                    <img
-                      src="/assets/cat-electricistas.jpg"
-                      alt="Electricistas"
-                      class="cat-img"
-                      data-fallback="cat"
-                    />
-                    <div class="cat-ph" aria-hidden="true">
-                      <div class="cat-ph-bg"></div>
-                      <div class="cat-ph-icon">
-                        <!-- bolt -->
-                        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M13 2L3 14h7l-1 8 12-16h-7l-1-4z" stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="cat-label">Electricistas</div>
-                </div>
-
-                <div class="cat-card">
-                  <div class="cat-avatar">
-                    <img
-                      src="/assets/cat-plomeros.jpg"
-                      alt="Plomeros"
-                      class="cat-img"
-                      data-fallback="cat"
-                    />
-                    <div class="cat-ph" aria-hidden="true">
-                      <div class="cat-ph-bg"></div>
-                      <div class="cat-ph-icon">
-                        <!-- droplet -->
-                        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 2s7 7.5 7 13a7 7 0 11-14 0c0-5.5 7-13 7-13z" stroke-linejoin="round" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="cat-label">Plomeros</div>
-                </div>
-
-                <div class="cat-card">
-                  <div class="cat-avatar">
-                    <img
-                      src="/assets/cat-cerrajeros.jpg"
-                      alt="Cerrajeros"
-                      class="cat-img"
-                      data-fallback="cat"
-                    />
-                    <div class="cat-ph" aria-hidden="true">
-                      <div class="cat-ph-bg"></div>
-                      <div class="cat-ph-icon">
-                        <!-- key -->
-                        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M21 10l-4 4h-2v2h-2v2H9l-1-1v-3l6-6" stroke-linejoin="round" />
-                          <circle cx="7.5" cy="14.5" r="4.5" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="cat-label">Cerrajeros</div>
-                </div>
-
-                <div class="cat-card">
-                  <div class="cat-avatar">
-                    <img
-                      src="/assets/cat-mas.jpg"
-                      alt="Más servicios"
-                      class="cat-img"
-                      data-fallback="cat"
-                    />
-                    <div class="cat-ph" aria-hidden="true">
-                      <div class="cat-ph-bg"></div>
-                      <div class="cat-ph-icon">
-                        <!-- grid -->
-                        <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="cat-label cat-label-2">Más servicios</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Big pills -->
-            <div class="mt-10 flex flex-wrap gap-5">
-              <button type="button" class="big-pill">
-                <span class="big-pill-ic">
-                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M13 2L3 14h7l-1 8 12-16h-7l-1-4z" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span class="big-pill-tx">Electricistas</span>
-              </button>
-
-              <button type="button" class="big-pill">
-                <span class="big-pill-ic">
-                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2s7 7.5 7 13a7 7 0 11-14 0c0-5.5 7-13 7-13z" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span class="big-pill-tx">Plomeros</span>
-              </button>
-
-              <button type="button" class="big-pill">
-                <span class="big-pill-ic">
-                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
-                  </svg>
-                </span>
-                <span class="big-pill-tx">Más servicios</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Right -->
-          <div class="relative">
-            <!-- behind haze/glass -->
-            <div class="pointer-events-none absolute -inset-6 -z-10">
-              <div class="absolute right-[-30px] top-10 h-[420px] w-[420px] rounded-full bg-[#CFE3FF] opacity-40 blur-3xl"></div>
-              <div class="absolute right-20 top-24 h-[420px] w-[520px] rounded-[80px] bg-white/35 ring-1 ring-slate-200/40 backdrop-blur-xl shadow-soft"></div>
-              <div class="absolute right-0 top-[260px] h-[260px] w-[340px] rounded-[80px] bg-[#DCEEFF] opacity-40 blur-2xl"></div>
-            </div>
-
-            <div class="relative mx-auto w-full max-w-[520px] lg:max-w-[560px]">
-              <!-- Phone image (preferred) -->
-              <img
-                src="/assets/phone-mock.png"
-                alt="Vista previa de la app Figxly"
-                class="phone-img block w-full max-w-[520px] lg:max-w-[560px] translate-x-6 lg:translate-x-8 rotate-[10deg] rounded-[42px] shadow-float"
-                data-fallback="phone"
-              />
-
-              <!-- Phone placeholder (if image missing) -->
-              <div class="phone-ph hidden translate-x-6 lg:translate-x-8 rotate-[10deg]">
-                <div class="phone-shell">
-                  <div class="phone-notch" aria-hidden="true"></div>
-
-                  <div class="phone-topbar">
-                    <div class="h-3 w-20 rounded-full bg-slate-200/70"></div>
-                    <div class="flex gap-2">
-                      <div class="h-3 w-3 rounded-full bg-slate-200/70"></div>
-                      <div class="h-3 w-3 rounded-full bg-slate-200/70"></div>
-                      <div class="h-3 w-3 rounded-full bg-slate-200/70"></div>
-                    </div>
-                  </div>
-
-                  <div class="phone-card">
-                    <div class="h-24 w-full rounded-2xl bg-[linear-gradient(135deg,rgba(140,185,255,0.50),rgba(255,255,255,0.35))]"></div>
-                    <div class="mt-4 flex items-center justify-between">
-                      <div class="h-4 w-36 rounded-full bg-slate-200/70"></div>
-                      <div class="h-4 w-16 rounded-full bg-slate-200/70"></div>
-                    </div>
-                    <div class="mt-3 h-3 w-56 rounded-full bg-slate-200/60"></div>
-                    <div class="mt-6 flex gap-3">
-                      <div class="h-10 w-10 rounded-2xl bg-slate-100 ring-1 ring-slate-200/70"></div>
-                      <div class="h-10 w-10 rounded-2xl bg-slate-100 ring-1 ring-slate-200/70"></div>
-                      <div class="h-10 w-10 rounded-2xl bg-slate-100 ring-1 ring-slate-200/70"></div>
-                    </div>
-                  </div>
-
-                  <div class="phone-card mt-4">
-                    <div class="h-24 w-full rounded-2xl bg-[linear-gradient(135deg,rgba(140,185,255,0.40),rgba(255,255,255,0.30))]"></div>
-                    <div class="mt-4 flex items-center justify-between">
-                      <div class="h-4 w-40 rounded-full bg-slate-200/70"></div>
-                      <div class="h-4 w-14 rounded-full bg-slate-200/70"></div>
-                    </div>
-                    <div class="mt-3 h-3 w-52 rounded-full bg-slate-200/60"></div>
-                    <div class="mt-6 flex justify-around">
-                      <div class="h-2 w-10 rounded-full bg-slate-200/70"></div>
-                      <div class="h-2 w-10 rounded-full bg-slate-200/70"></div>
-                      <div class="h-2 w-10 rounded-full bg-slate-200/70"></div>
-                      <div class="h-2 w-10 rounded-full bg-slate-200/70"></div>
-                    </div>
-                  </div>
-
-                  <div class="phone-homebar" aria-hidden="true"></div>
-                </div>
-              </div>
-
-              <!-- Optional: subtle right-side decor like in reference (kept minimal) -->
-              <div class="pointer-events-none absolute -right-2 bottom-10 hidden lg:block">
-                <div class="h-20 w-20 rounded-3xl bg-white/55 ring-1 ring-slate-200/60 backdrop-blur shadow-card"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+      <main id="app" class="mt-10"></main>
     </div>
 
-    <!-- Toast -->
-    <div
-      id="toast"
-      class="pointer-events-none fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-full bg-uiBlue px-5 py-3 text-[14px] font-semibold text-white shadow-[0_18px_50px_rgba(11,43,92,0.35)]"
-      role="status"
-      aria-live="polite"
-    >
-      Buscando…
-    </div>
+    <div id="toast" class="pointer-events-none fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-full bg-uiBlue px-5 py-3 text-[14px] font-semibold text-white">OK</div>
 
+    <script src="./data/mock.js" defer></script>
     <script src="./main.js" defer></script>
   </body>
 </html>
