@@ -1,0 +1,58 @@
+name: static-ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  static-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate static site structure and paths
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SITE_DIR=""
+          if [ -f "docs/index.html" ]; then
+            SITE_DIR="docs"
+          elif [ -f "index.html" ]; then
+            SITE_DIR="."
+          else
+            echo "No index.html found in docs/ or repository root"
+            exit 1
+          fi
+
+          echo "Using site directory: ${SITE_DIR}"
+
+          test -f "${SITE_DIR}/index.html"
+          test -f "${SITE_DIR}/main.js"
+          test -f "${SITE_DIR}/styles.css"
+
+          if [ "${SITE_DIR}" = "docs" ]; then
+            test -f "docs/.nojekyll"
+            test -f "docs/assets/README.md"
+          fi
+
+          INDEX_FILE="${SITE_DIR}/index.html"
+          grep -Eq 'href="\./styles\.css"' "${INDEX_FILE}"
+          grep -Eq 'src="\./main\.js"' "${INDEX_FILE}"
+
+          if grep -Eq 'src="/assets/|href="/assets/' "${INDEX_FILE}"; then
+            echo "Absolute /assets/ paths detected in ${INDEX_FILE}. Use relative ./assets/ paths."
+            exit 1
+          fi
+
+          if [ "${SITE_DIR}" = "docs" ]; then
+            if grep -Eq 'src="assets/|href="assets/' "${INDEX_FILE}"; then
+              echo "assets/ paths in ${INDEX_FILE} must be prefixed with ./ when site lives in docs/."
+              exit 1
+            fi
+          fi
+
+          echo "Static site checks passed."
