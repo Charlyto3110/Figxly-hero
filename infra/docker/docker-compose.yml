@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: figxly
+      POSTGRES_PASSWORD: figxly
+      POSTGRES_DB: figxly
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports: ["9000:9000", "9001:9001"]
+  api:
+    image: node:20
+    working_dir: /app
+    volumes: ["../../:/app"]
+    command: sh -c "npm i && npm run prisma:generate --workspace apps/api && npm run dev --workspace apps/api"
+    environment:
+      DATABASE_URL: postgresql://figxly:figxly@db:5432/figxly
+      JWT_SECRET: dev-secret
+    ports: ["4000:4000"]
+    depends_on: [db]
+  web:
+    image: node:20
+    working_dir: /app
+    volumes: ["../../:/app"]
+    command: sh -c "npm i && npm run dev --workspace apps/web -- --host 0.0.0.0"
+    environment:
+      VITE_API_URL: http://localhost:4000
+    ports: ["5173:5173"]
+    depends_on: [api]
+volumes:
+  pgdata:
