@@ -1,367 +1,570 @@
 const qs = (s, el = document) => el.querySelector(s);
 const qsa = (s, el = document) => [...el.querySelectorAll(s)];
 
-const { storage, services, STATUS, STATUS_LABEL, ensureSession, addTimeline, createRequest, uid, now } = window.FIGXLY_DATA;
+const STORAGE_KEYS = {
+  session: 'figxly.session',
+  users: 'figxly.users',
+  pendingOtp: 'figxly.pendingOtp',
+  bookings: 'figxly.bookings',
+  reviews: 'figxly.reviews',
+  tickets: 'figxly.tickets',
+  lastSearch: 'figxly.lastSearch',
+};
 
-const state = { redirectAfterLogin: null, modalAction: null };
+const STORE = {
+  get session() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || '{"loggedIn":false,"name":"Invitado"}');
+  },
+  set session(v) {
+    localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(v));
+  },
+  get users() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.users) || '[]');
+  },
+  set users(v) {
+    localStorage.setItem(STORAGE_KEYS.users, JSON.stringify(v));
+  },
+  get pendingOtp() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.pendingOtp) || 'null');
+  },
+  set pendingOtp(v) {
+    if (v) localStorage.setItem(STORAGE_KEYS.pendingOtp, JSON.stringify(v));
+    else localStorage.removeItem(STORAGE_KEYS.pendingOtp);
+  },
+  get bookings() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.bookings) || '[]');
+  },
+  set bookings(v) {
+    localStorage.setItem(STORAGE_KEYS.bookings, JSON.stringify(v));
+  },
+  get reviews() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.reviews) || '[]');
+  },
+  set reviews(v) {
+    localStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(v));
+  },
+  get tickets() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.tickets) || '[]');
+  },
+  set tickets(v) {
+    localStorage.setItem(STORAGE_KEYS.tickets, JSON.stringify(v));
+  },
+  get lastSearch() {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.lastSearch) || '{}');
+  },
+  set lastSearch(v) {
+    localStorage.setItem(STORAGE_KEYS.lastSearch, JSON.stringify(v));
+  },
+};
 
-const esc = (v = '') => String(v).replace(/[&<>'"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[m]));
-const formatMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n || 0);
-const formatDate = (d) => new Date(d).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
-const navTo = (p) => { location.hash = p.startsWith('/') ? `#${p}` : `#/${p}`; };
+const state = { bookingDraft: null, activeStars: 5 };
 
-function parseHash() {
-  const hash = (location.hash || '#/').slice(1);
-  const [path, search = ''] = hash.split('?');
-  return { path: path || '/', params: new URLSearchParams(search) };
+function uid(prefix = 'id') {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
-
-function uiToast(message) {
+function navTo(path) {
+  location.hash = path.startsWith('/') ? `#${path}` : `#/${path}`;
+}
+function parseHash() {
+  const hash = (location.hash || '#/').replace(/^#/, '');
+  const [path, queryString = ''] = hash.split('?');
+  return { path: path || '/', params: new URLSearchParams(queryString) };
+}
+function toast(message, timeout = 1700) {
   const t = qs('#toast');
   if (!t) return;
   t.textContent = message;
   t.classList.remove('hidden');
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.add('hidden'), 1800);
+  t._timer = setTimeout(() => t.classList.add('hidden'), timeout);
 }
-
-function uiModalConfirm(message, onConfirm) {
-  state.modalAction = onConfirm;
-  const root = qs('#modal-root');
-  root.innerHTML = `<div class="fixed inset-0 z-50 grid place-items-center bg-slate-900/40 p-4"><div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-card"><p class="text-slateInk/85">${esc(message)}</p><div class="mt-5 flex justify-end gap-3"><button data-modal-cancel class="rounded-xl border border-slate-200 px-4 py-2">Cancelar</button><button data-modal-confirm class="rounded-xl bg-uiBlue px-4 py-2 text-white">Confirmar</button></div></div></div>`;
-}
-
-function closeModal() { qs('#modal-root').innerHTML = ''; state.modalAction = null; }
-function getCurrentUser() { return storage.currentUser; }
-function allUsersByRole(role) { return storage.users.filter((u) => u.role === role); }
-
-function isAuthed() { return !!storage.session.loggedIn && !!storage.currentUser; }
-function ensureAuth() {
-  if (isAuthed()) return true;
-  state.redirectAfterLogin = location.hash || '#/';
-  navTo('/auth/login');
-  return false;
-}
-
-function renderHeaderControls() {
-  const user = getCurrentUser();
-  const authDesktop = qs('#auth-desktop');
-  const authMobile = qs('#auth-mobile');
-  const roleOptions = ['cliente', 'ingeniero', 'tecnico', 'transportista'].map((r) => `<option value="${r}" ${user?.role === r ? 'selected' : ''}>${r}</option>`).join('');
-  const html = user
-    ? `<div class="flex items-center gap-2"><span class="text-sm">${esc(user.name)}</span><select id="dev-role" class="rounded-xl border border-slate-200 bg-white px-2 py-1 text-sm" aria-label="Selector de rol">${roleOptions}</select><button data-logout class="auth-link">Salir</button></div>`
-    : '<a class="auth-btn" href="#/auth/login">Ingresar</a>';
-  authDesktop.innerHTML = html;
-  authMobile.innerHTML = html;
-}
-
-function routeMatch(path, pattern) {
-  const px = path.split('/').filter(Boolean);
-  const pt = pattern.split('/').filter(Boolean);
-  if (px.length !== pt.length) return null;
-  const params = {};
-  for (let i = 0; i < pt.length; i += 1) {
-    if (pt[i].startsWith(':')) params[pt[i].slice(1)] = px[i];
-    else if (pt[i] !== px[i]) return null;
-  }
-  return params;
-}
-
-function statusChip(status) { return `<span class="status-chip status-${status}">${esc(STATUS_LABEL[status] || status)}</span>`; }
 
 function renderHome() {
-  return `<section><h1 class="text-4xl font-semibold">Servicios Figxly</h1><p class="mt-2 text-slateInk/70">Selecciona una categoría para crear tu solicitud.</p><div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">${services.map((s) => `<a href="#/request/new?service=${s.slug}" class="rounded-2xl bg-white/85 p-5 ring-1 ring-slate-200/80 shadow-card hover:-translate-y-0.5 transition"><div class="text-2xl">${s.icon}</div><h3 class="mt-2 text-lg font-semibold">${s.label}</h3></a>`).join('')}</div></section>`;
+  const { categories } = window.FIGXLY_MOCK;
+  const last = STORE.lastSearch;
+  return `<section class="grid items-center gap-12 lg:grid-cols-2 lg:gap-10 -mt-4">
+    <div class="max-w-[640px]">
+      <h1 class="text-slateInk tracking-[-0.03em] leading-[1.06] font-semibold text-[32px] sm:text-[40px] lg:text-[48px]">El talento que necesitas,<br />a tu servicio con un clic</h1>
+      <p class="mt-5 text-[17px] text-slateInk/70">Busca, agenda y paga en minutos. Todo desde Figxly con técnicos verificados y soporte humano.</p>
+      <form id="search-form" class="mt-8" autocomplete="off">
+        <div class="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2 rounded-3xl sm:rounded-full bg-white/85 shadow-pill ring-1 ring-slate-200/70 px-4 py-3 sm:px-5 sm:py-4">
+          <input name="q" value="${last.q || ''}" type="text" placeholder="¿Qué servicio necesitas?" class="min-w-0 flex-[2] bg-transparent text-[15px] font-medium text-slateInk/80 placeholder:text-slateInk/45 outline-none" />
+          <input name="loc" value="${last.loc || 'Ciudad de México'}" class="min-w-0 flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
+          <input name="date" value="${last.date || ''}" type="date" class="min-w-0 flex-1 bg-transparent text-[15px] text-slateInk/70 outline-none" />
+          <button type="submit" class="ml-0 sm:ml-2 rounded-full bg-coral px-5 py-3 text-[14px] font-semibold text-white">Buscar</button>
+        </div>
+      </form>
+      <div class="mt-10 flex flex-wrap items-start gap-7 sm:gap-8">${categories.map((c) => `<button data-service="${c.slug}" class="cat-card"><div class="cat-avatar"><div class="cat-ph" style="display:block"><div class="cat-ph-bg"></div><div class="cat-ph-icon text-2xl">${c.icon}</div></div></div><div class="cat-label">${c.name}</div></button>`).join('')}</div>
+      <div class="mt-10 flex flex-wrap gap-5">${categories.slice(0, 4).map((c) => `<button class="big-pill" data-service="${c.slug}"><span class="big-pill-ic">${c.icon}</span><span class="big-pill-tx">${c.name}</span></button>`).join('')}</div>
+    </div>
+    <div class="relative"><img src="./assets/phone-mock.png" alt="Vista previa de la app Figxly" class="phone-img block w-full max-w-[520px] lg:max-w-[560px] translate-x-6 lg:translate-x-8 rotate-[10deg] rounded-[42px] shadow-float" data-fallback="phone" /><div class="phone-ph hidden translate-x-6 lg:translate-x-8 rotate-[10deg]"><div class="phone-shell"><div class="phone-notch"></div><div class="phone-card mt-12"><div class="h-24 rounded-2xl bg-haze"></div></div><div class="phone-card mt-4"><div class="h-24 rounded-2xl bg-haze"></div></div><div class="phone-homebar"></div></div></div></div>
+  </section>`;
 }
 
-function renderLogin() {
-  const users = storage.users;
-  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">Auth mock</h2><p class="mt-2 text-slateInk/70">Elige un usuario semilla para entrar.</p><div class="mt-5 grid gap-3">${users.map((u) => `<button data-login="${u.id}" class="rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-haze"><strong>${esc(u.name)}</strong> <span class="text-sm text-slateInk/70">(${u.role} · ${u.city})</span></button>`).join('')}</div></section>`;
+function techCard(t) {
+  return `<article class="rounded-2xl bg-white/90 p-4 ring-1 ring-slate-200/80 shadow-card">
+    <div class="flex items-start justify-between gap-3">
+      <div><h3 class="text-lg font-semibold text-slateInk">${t.nombre}</h3><p class="text-sm text-slateInk/65">${t.servicioLabel} · ${t.ciudad} · ${t.distanciaKm} km</p></div>
+      <span class="rounded-full bg-haze px-3 py-1 text-xs font-semibold text-uiBlue">⭐ ${t.rating}</span>
+    </div>
+    <p class="mt-3 text-sm text-slateInk/70 line-clamp-2">${t.descripcion}</p>
+    <div class="mt-3 flex flex-wrap gap-2">${t.tags.map((tag) => `<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slateInk/70">${tag}</span>`).join('')}</div>
+    <div class="mt-4 flex items-center justify-between"><p class="font-semibold text-slateInk">Desde $${t.precioBase} MXN</p><button data-go-pro="${t.id}" class="rounded-xl bg-uiBlue px-4 py-2 text-sm font-semibold text-white">Ver perfil</button></div>
+  </article>`;
 }
 
-function renderServices() { return renderHome(); }
-
-function renderRequestNew(params) {
-  if (!ensureAuth()) return '';
-  const user = getCurrentUser();
-  const service = params.get('service') || 'plomeria';
-  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">Nueva solicitud</h2><form id="request-form" class="mt-5 grid gap-4"><label>Servicio<select name="serviceCategory" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white">${services.map((s) => `<option value="${s.slug}" ${s.slug === service ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label><label>Contacto<input disabled value="${esc(user.name)} · ${esc(user.phone || user.email || '')}" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-slate-50" /></label><label>Ciudad<input name="city" required value="${esc(user.city || 'CDMX')}" class="mt-1 w-full rounded-xl border border-slate-200 p-2"/></label><label>Dirección<input name="addressText" required class="mt-1 w-full rounded-xl border border-slate-200 p-2"/></label><label>Descripción<textarea name="description" rows="4" required class="mt-1 w-full rounded-xl border border-slate-200 p-2"></textarea></label><label class="flex items-center gap-2"><input type="checkbox" name="requiresTransport" /> Requiere transportista</label><label>Fotos (1-4, recomendado)<input name="photos" type="file" multiple accept="image/*" class="mt-1 w-full rounded-xl border border-slate-200 p-2"/></label><div id="photo-preview" class="grid grid-cols-4 gap-2"></div><button class="rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Publicar solicitud</button></form></section>`;
+function renderResults(params) {
+  const filters = {
+    q: params.get('q') || '',
+    loc: params.get('loc') || '',
+    date: params.get('date') || '',
+    service: params.get('service') || '',
+    minRating: Number(params.get('minRating') || 0),
+    maxPrice: Number(params.get('maxPrice') || 10000),
+    verifiedOnly: params.get('verified') === '1',
+    todayOnly: params.get('today') === '1',
+  };
+  const results = window.FIGXLY_MOCK.searchTechnicians(filters);
+  return `<section class="space-y-6">
+    <header class="rounded-2xl bg-white/85 p-5 ring-1 ring-slate-200/80 shadow-card">
+      <h2 class="text-3xl font-semibold text-slateInk">Técnicos disponibles</h2>
+      <p class="mt-2 text-slateInk/70">${results.length} resultados ${filters.loc ? `en ${filters.loc}` : ''} ${filters.date ? `para ${filters.date}` : ''}</p>
+    </header>
+    <div class="grid gap-6 lg:grid-cols-[260px_1fr]">
+      <aside class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card h-fit">
+        <h3 class="font-semibold text-slateInk">Filtros</h3>
+        <form id="filters-form" class="mt-4 space-y-3 text-sm">
+          <label class="block">Servicio<select name="service" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white"><option value="">Todos</option>${window.FIGXLY_MOCK.services.map((s) => `<option value="${s.slug}" ${s.slug === filters.service ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>
+          <label class="block">Rating mínimo<select name="minRating" class="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 bg-white">${[0, 4, 4.5].map((v) => `<option value="${v}" ${v === filters.minRating ? 'selected' : ''}>${v === 0 ? 'Cualquiera' : `${v}+`}</option>`).join('')}</select></label>
+          <label class="block">Precio máximo<input type="range" min="250" max="1200" step="50" name="maxPrice" value="${filters.maxPrice}" class="mt-1 w-full" /><span class="text-xs text-slateInk/70">Hasta $${filters.maxPrice}</span></label>
+          <label class="flex items-center gap-2"><input type="checkbox" name="verified" ${filters.verifiedOnly ? 'checked' : ''} /> Verificados</label>
+          <label class="flex items-center gap-2"><input type="checkbox" name="today" ${filters.todayOnly ? 'checked' : ''} /> Disponible hoy</label>
+          <button class="w-full rounded-xl bg-uiBlue px-3 py-2 font-semibold text-white">Aplicar filtros</button>
+        </form>
+      </aside>
+      <div class="grid gap-4 md:grid-cols-2">${results.map(techCard).join('') || '<p class="text-slateInk/70">No hay técnicos con esos filtros.</p>'}</div>
+    </div>
+  </section>`;
 }
 
-function renderRequests() {
-  if (!ensureAuth()) return '';
-  const u = getCurrentUser();
-  const list = storage.requests.filter((r) => u.role === 'cliente' ? r.clientId === u.id : true);
-  return `<section><h2 class="text-3xl font-semibold">Mis solicitudes</h2><div class="mt-5 space-y-3">${list.map((r) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><div class="flex items-center justify-between"><p class="font-semibold">${esc(r.serviceCategory)} · ${esc(r.address.city)}</p>${statusChip(r.status)}</div><p class="mt-1 text-sm text-slateInk/70">${esc(r.description)}</p><a class="mt-3 inline-block text-uiBlue font-semibold" href="#/request/${r.id}">Ver detalle</a></article>`).join('') || '<p>Sin solicitudes.</p>'}</div></section>`;
+function renderProProfile(id) {
+  const pro = window.FIGXLY_MOCK.getTechnician(id);
+  if (!pro) return '<p class="text-slateInk/80">No encontramos ese técnico.</p>';
+  const reviews = [...window.FIGXLY_MOCK.reviews.filter((r) => r.technicianId === id), ...STORE.reviews.filter((r) => r.technicianId === id)];
+  return `<section class="grid gap-6 lg:grid-cols-[1.3fr_0.9fr]">
+    <article class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <header class="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 class="text-3xl font-semibold text-slateInk">${pro.nombre}</h2><p class="text-slateInk/70">${pro.servicioLabel} · ${pro.ciudad}</p></div>
+        <div class="text-right"><p class="font-semibold">⭐ ${pro.rating} (${pro.reviewsCount})</p><p class="text-sm text-slateInk/70">${pro.distanciaKm} km de distancia</p></div>
+      </header>
+      <div class="mt-4 flex flex-wrap gap-2">${pro.tags.map((tag) => `<span class="rounded-full bg-haze px-3 py-1 text-xs font-semibold text-uiBlue">${tag}</span>`).join('')}</div>
+      <p class="mt-5 text-slateInk/80">${pro.descripcion}</p>
+      <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slateInk/60">Servicios</p><p class="mt-1 font-semibold">${pro.servicios.join(', ')}</p></div>
+        <div class="rounded-2xl bg-slate-50 p-4"><p class="text-xs text-slateInk/60">Rango de precios</p><p class="mt-1 font-semibold">$${pro.precioBase} - $${pro.precioBase + 450} MXN</p></div>
+      </div>
+      <section class="mt-7"><h3 class="text-xl font-semibold">Reviews</h3><div class="mt-3 space-y-3">${reviews.slice(0, 4).map((r) => `<div class="rounded-2xl bg-white p-3 ring-1 ring-slate-200"><p class="text-sm font-semibold">${r.user} · ⭐ ${r.rating}</p><p class="text-sm text-slateInk/70">${r.comment}</p></div>`).join('') || '<p class="text-slateInk/70">Aún no tiene reseñas.</p>'}</div></section>
+    </article>
+    <aside class="lg:sticky lg:top-24 h-fit rounded-3xl bg-white/90 p-5 ring-1 ring-slate-200/80 shadow-card">
+      <p class="text-sm text-slateInk/70">Costo base</p><p class="text-3xl font-semibold text-slateInk mt-1">$${pro.precioBase}</p>
+      <button data-book-now="${pro.id}" class="mt-5 w-full rounded-xl bg-coral px-4 py-3 text-sm font-semibold text-white">Agendar</button>
+    </aside>
+  </section>`;
 }
 
-function requestParticipants(req) {
-  const ids = [req.clientId, req.assigned.engineerId, ...req.assigned.technicianIds, req.assigned.transporterId].filter(Boolean);
-  return storage.users.filter((u) => ids.includes(u.id));
+function renderBooking(id) {
+  const pro = window.FIGXLY_MOCK.getTechnician(id);
+  if (!pro) return '<p>Técnico no encontrado.</p>';
+  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Agendar cita con ${pro.nombre}</h2>
+    <form id="booking-form" class="mt-6 grid gap-4 sm:grid-cols-2">
+      <input type="hidden" name="proId" value="${pro.id}" />
+      <label class="block">Fecha<select name="date" required class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white">${pro.disponibilidad.map((d) => `<option>${d}</option>`).join('')}</select></label>
+      <label class="block">Hora<select name="time" required class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>09:00</option><option>11:00</option><option>13:00</option><option>16:00</option></select></label>
+      <label class="sm:col-span-2">Dirección<input name="address" required placeholder="Calle, número, colonia" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <label class="sm:col-span-2">Notas<textarea name="notes" rows="3" placeholder="Detalles de la reparación" class="mt-1 w-full rounded-xl border border-slate-200 p-2"></textarea></label>
+      <label class="block">Tipo de visita<select name="visitType" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option value="normal">Normal</option><option value="urgente">Urgente</option></select></label>
+      <div class="rounded-2xl bg-haze p-3"><p class="text-sm text-slateInk/70">Resumen estimado</p><p class="font-semibold">$${pro.precioBase} base + urgencia si aplica.</p></div>
+      <button class="sm:col-span-2 rounded-xl bg-uiBlue px-4 py-3 text-sm font-semibold text-white">Continuar a pago</button>
+    </form>
+  </section>`;
 }
 
-function renderTimeline(req) {
-  return `<ol class="timeline">${req.timeline.map((t) => `<li><div class="timeline-dot"></div><div><p class="font-semibold">${esc(STATUS_LABEL[t.status] || t.status)}</p><p class="text-sm text-slateInk/70">${esc(t.note || '')}</p><p class="text-xs text-slateInk/50">${formatDate(t.at)}</p></div></li>`).join('')}</ol>`;
+function renderPayment(bookingId) {
+  const booking = STORE.bookings.find((b) => b.id === bookingId);
+  if (!booking) return '<p class="text-slateInk/80">No encontramos esta reserva.</p>';
+  if (booking.status === 'paid') {
+    return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card text-center"><h2 class="text-3xl font-semibold">Pago confirmado</h2><p class="mt-2 text-slateInk/70">Tu cita con ${booking.proName} quedó pagada.</p><button data-go-review="${booking.id}" class="mt-6 rounded-xl bg-coral px-5 py-3 font-semibold text-white">Calificar servicio</button></section>`;
+  }
+  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Checkout</h2>
+    <p class="mt-1 text-slateInk/70">Booking ${booking.id.slice(-8)} · ${booking.proName}</p>
+    <form id="payment-form" data-booking-id="${booking.id}" class="mt-5 grid gap-4 sm:grid-cols-2">
+      <label>Método<select name="method" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>tarjeta</option><option>efectivo</option><option>transferencia</option></select></label>
+      <label>Titular<input name="holder" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <label>Número<input name="card" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" placeholder="4242 4242 4242 4242" /></label>
+      <label>CVV<input name="cvv" required class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <div class="sm:col-span-2 rounded-2xl bg-haze p-3"><p class="font-semibold">Total a pagar: $${booking.estimate} MXN</p></div>
+      <button class="sm:col-span-2 rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Pagar</button>
+    </form>
+  </section>`;
 }
 
-function renderRequestDetail(id, dashboard = false) {
-  if (!ensureAuth()) return '';
-  const req = storage.requests.find((r) => r.id === id);
-  if (!req) return '<p>Solicitud no encontrada.</p>';
-  const user = getCurrentUser();
-  const canClientActions = user.role === 'cliente' && req.clientId === user.id;
-  const base = dashboard ? `#/dashboard/request/${id}` : `#/request/${id}`;
-  return `<section class="grid gap-6 lg:grid-cols-3"><article class="lg:col-span-2 rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><div class="flex items-center justify-between"><h2 class="text-2xl font-semibold">Solicitud ${esc(id.slice(-6))}</h2>${statusChip(req.status)}</div><p class="mt-2 text-slateInk/70">${esc(req.description)}</p><div class="mt-3 grid grid-cols-4 gap-2">${req.photos.map((p) => `<img src="${p}" alt="evidencia" class="h-20 w-full rounded-xl object-cover"/>`).join('')}</div><div class="mt-4 flex flex-wrap gap-2"><a href="${base}/chat" class="rounded-xl border border-slate-200 px-3 py-2">Chat</a>${canClientActions ? `<a href="#/request/${id}/schedule" class="rounded-xl border border-slate-200 px-3 py-2">Agenda</a><a href="#/request/${id}/payment" class="rounded-xl border border-slate-200 px-3 py-2">Pago</a><a href="#/request/${id}/review" class="rounded-xl border border-slate-200 px-3 py-2">Reseña</a><a href="#/request/${id}/dispute" class="rounded-xl border border-slate-200 px-3 py-2">Reclamo</a>` : ''}</div><div class="mt-6">${renderTimeline(req)}</div></article><aside class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h3 class="font-semibold">Asignados</h3><div class="mt-3 space-y-2">${requestParticipants(req).map((u) => `<div class="rounded-xl bg-haze p-3"><p class="font-semibold">${esc(u.name)}</p><p class="text-xs">${esc(u.role)} · ⭐ ${esc(u.rating)}</p></div>`).join('') || '<p class="text-sm text-slateInk/70">Sin asignar.</p>'}</div></aside></section>`;
+function renderReview(bookingId) {
+  const booking = STORE.bookings.find((b) => b.id === bookingId);
+  if (!booking) return '<p>Reserva no encontrada.</p>';
+  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+    <h2 class="text-3xl font-semibold">Califica tu servicio</h2>
+    <p class="mt-1 text-slateInk/70">${booking.proName} · ${booking.date} ${booking.time}</p>
+    <form id="review-form" data-booking-id="${booking.id}" class="mt-6 space-y-4">
+      <input type="hidden" name="rating" value="5" />
+      <div class="flex gap-2 text-2xl" data-stars>${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}">⭐</button>`).join('')}</div>
+      <textarea name="comment" required rows="4" placeholder="Cuéntanos cómo fue tu experiencia" class="w-full rounded-xl border border-slate-200 p-3"></textarea>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="reportIssue" /> Reportar un problema</label>
+      <button class="rounded-xl bg-coral px-4 py-3 font-semibold text-white">Enviar reseña</button>
+    </form>
+  </section>`;
 }
 
-function renderInbox() {
-  if (!ensureAuth()) return '';
-  const user = getCurrentUser();
-  const list = storage.requests.filter((r) => r.address.city === user.city && (r.status === STATUS.posted || r.status === STATUS.additional_techs_needed || (user.role === 'transportista' && r.requiresTransport && !r.assigned.transporterId)));
-  const taken = list.filter((r)=>r.assigned.engineerId||r.assigned.technicianIds.length).length; return `<section><h2 class="text-3xl font-semibold">Inbox / Viajes ${esc(user.role)}</h2><p class="text-sm text-slateInk/70 mt-1">Casos con asignación parcial: ${taken}</p><div class="mt-5 space-y-3">${list.map((r) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${esc(r.serviceCategory)} · ${esc(r.address.city)}</p><p class="text-sm">${esc(r.description)}</p><div class="mt-3 flex gap-2"><a class="rounded-xl border px-3 py-2" href="#/dashboard/request/${r.id}">Detalle</a>${user.role === 'ingeniero' ? `<button data-act="take-engineer" data-id="${r.id}" class="rounded-xl bg-uiBlue px-3 py-2 text-white">Tomar caso</button><button data-act="need-techs" data-id="${r.id}" class="rounded-xl border px-3 py-2">+ Técnicos</button>` : ''}${user.role === 'tecnico' ? `<button data-act="take-tech" data-id="${r.id}" class="rounded-xl bg-uiBlue px-3 py-2 text-white">Aceptar caso</button>` : ''}${user.role === 'transportista' ? `<button data-act="take-transporter" data-id="${r.id}" class="rounded-xl bg-uiBlue px-3 py-2 text-white">Aceptar viaje</button>` : ''}</div></article>`).join('') || '<p>Sin elementos.</p>'}</div></section>`;
+function renderSupport(params) {
+  const bookingId = params.get('bookingId') || '';
+  return `<section class="mx-auto max-w-3xl grid gap-6 lg:grid-cols-2">
+    <article class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <h2 class="text-2xl font-semibold">Soporte Figxly</h2>
+      <p class="mt-2 text-slateInk/70">Abrimos un ticket y te respondemos por correo en menos de 12h.</p>
+      <ul class="mt-4 list-disc pl-5 text-sm text-slateInk/70"><li>Estado de cita</li><li>Cobro incorrecto</li><li>Calidad del servicio</li></ul>
+    </article>
+    <form id="support-form" class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card">
+      <input type="hidden" name="bookingId" value="${bookingId}" />
+      <label class="block">Motivo<select name="reason" class="mt-1 w-full rounded-xl border border-slate-200 p-2 bg-white"><option>Cobro</option><option>Incumplimiento</option><option>Seguridad</option><option>Otro</option></select></label>
+      <label class="mt-3 block">Descripción<textarea name="description" required rows="4" class="mt-1 w-full rounded-xl border border-slate-200 p-2" placeholder="Describe lo sucedido"></textarea></label>
+      <label class="mt-3 block">Adjuntar evidencia (UI)<input type="file" class="mt-1 w-full rounded-xl border border-slate-200 p-2" /></label>
+      <button class="mt-4 w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Enviar reclamo</button>
+    </form>
+  </section>`;
 }
 
-function renderDashboard() {
-  if (!ensureAuth()) return '';
-  const u = getCurrentUser();
-  return `<section class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">Panel ${esc(u.role)}</h2><div class="mt-4 flex gap-3"><a class="rounded-xl border px-3 py-2" href="#/dashboard/inbox">Inbox / Viajes</a><a class="rounded-xl border px-3 py-2" href="#/dashboard/transport">Transporte</a></div></section>`;
+function renderOrders() {
+  const bookings = STORE.bookings;
+  return `<section><h2 class="text-3xl font-semibold">Mis citas</h2><div class="mt-5 space-y-3">${bookings.map((b) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${b.proName}</p><p class="text-sm text-slateInk/70">${b.date} ${b.time} · ${b.address}</p><p class="text-sm">Estado: <strong>${b.status}</strong></p></article>`).join('') || '<p class="text-slateInk/70">Aún no tienes citas.</p>'}</div></section>`;
 }
 
-function renderSchedule(id) {
-  if (!ensureAuth()) return '';
-  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Agenda consulta</h2><form id="schedule-form" data-id="${id}" class="mt-4 grid gap-3"><input required name="date" type="date" class="rounded-xl border p-2"/><select name="timeWindow" class="rounded-xl border p-2"><option>09:00-11:00</option><option>12:00-14:00</option><option>16:00-18:00</option></select><button class="rounded-xl bg-uiBlue px-4 py-2 text-white">Guardar agenda</button></form></section>`;
+function renderTickets() {
+  const tickets = STORE.tickets;
+  return `<section><h2 class="text-3xl font-semibold">Mis reclamos</h2><div class="mt-5 space-y-3">${tickets.map((t) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${t.folio} · ${t.reason}</p><p class="text-sm text-slateInk/70">${t.description}</p><p class="text-sm">Estado: ${t.status}</p></article>`).join('') || '<p class="text-slateInk/70">No tienes reclamos activos.</p>'}</div></section>`;
 }
 
-function renderPayment(id) {
-  const req = storage.requests.find((r) => r.id === id);
-  if (!req) return '<p>No encontrada.</p>';
-  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Pago de consulta</h2><p class="mt-2">Monto: <strong>${formatMoney(req.consultFee)}</strong></p><p class="text-sm text-slateInk/70">Estado actual: ${esc(STATUS_LABEL[req.status]||req.status)}</p><form id="payment-form" data-id="${id}" class="mt-4 grid gap-3"><select name="method" class="rounded-xl border p-2"><option>Tarjeta</option><option>OXXO</option><option>Transferencia</option></select><button class="rounded-xl bg-uiBlue px-4 py-2 text-white">Pagar ahora</button></form></section>`;
+
+function socialIcon(provider) {
+  const icons = {
+    google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21.8 12.2c0-.7-.1-1.4-.2-2H12v3.7h5.5a4.9 4.9 0 0 1-2.1 3.2v2.7h3.4c2-1.8 3-4.4 3-7.6Z"/><path fill="currentColor" d="M12 22c2.7 0 5-1 6.7-2.6l-3.4-2.7c-.9.7-2.1 1.2-3.3 1.2-2.6 0-4.8-1.8-5.6-4.2H2.9v2.8A10 10 0 0 0 12 22Z"/><path fill="currentColor" d="M6.4 13.7a6 6 0 0 1 0-3.4V7.5H2.9a10 10 0 0 0 0 8.9l3.5-2.7Z"/><path fill="currentColor" d="M12 6.1c1.4 0 2.7.5 3.7 1.5l2.8-2.8A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9.1 5.5l3.5 2.8C7.2 7.9 9.4 6.1 12 6.1Z"/></svg>',
+    apple: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16.3 12.3c0-2.2 1.8-3.2 1.9-3.3-1-.1-2.2.6-2.8.6-.8 0-1.5-.6-2.4-.5-1.2 0-2.4.7-3 1.8-1.3 2.3-.3 5.8 1 7.5.7.9 1.4 1.8 2.4 1.8s1.3-.6 2.4-.6 1.4.6 2.4.6 1.6-.9 2.2-1.8c.8-1.1 1.1-2.2 1.1-2.2s-2.1-.8-2.1-3.9Zm-1.7-5.2c.5-.7.9-1.6.8-2.5-.8 0-1.8.5-2.4 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.9-.4 2.4-1.1Z"/></svg>',
+    facebook: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.6 1.6-1.6h1.7V3.8c-.3 0-1.3-.1-2.4-.1-2.4 0-4 1.4-4 4v2.2H8V13h2.4v8h3.1Z"/></svg>',
+  };
+  return icons[provider] || '';
 }
 
-function renderChat(id, dashboard = false) {
-  const req = storage.requests.find((r) => r.id === id);
-  if (!req) return '<p>No encontrada.</p>';
-  const msgs = storage.messages.filter((m) => m.requestId === id);
-  const user = getCurrentUser();
-  const back = dashboard ? `#/dashboard/request/${id}` : `#/request/${id}`;
-  return `<section class="mx-auto max-w-3xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><div class="flex items-center justify-between"><h2 class="text-2xl font-semibold">Chat grupal</h2><a href="${back}">Volver</a></div><div class="chat-box mt-4">${msgs.map((m) => `<div class="chat-msg ${m.userId === user.id ? 'me' : ''}"><p>${esc(m.text)}</p><span>${esc(m.userName)} · visto</span></div>`).join('') || '<p class="text-sm text-slateInk/70">Sin mensajes aún.</p>'}</div><form id="chat-form" data-id="${id}" class="mt-3 flex gap-2"><input name="text" required class="flex-1 rounded-xl border p-2" placeholder="Escribe un mensaje al grupo"/><button class="rounded-xl bg-uiBlue px-4 text-white">Enviar</button></form></section>`;
+function authCard(title, subtitle, content) {
+  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">${title}</h2><p class="mt-2 text-slateInk/70">${subtitle}</p><div class="mt-6">${content}</div></section>`;
 }
 
-function renderStatusPage(id) {
-  const req = storage.requests.find((r) => r.id === id);
-  if (!req) return '<p>No encontrada.</p>';
-  const opts = [STATUS.pickup_planned, STATUS.on_the_way, STATUS.arrived, STATUS.working, STATUS.completed, STATUS.awaiting_review, STATUS.closed];
-  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Actualizar estado</h2><form id="status-form" data-id="${id}" class="mt-4 grid gap-3"><select name="status" class="rounded-xl border p-2">${opts.map((s) => `<option value="${s}">${esc(STATUS_LABEL[s])}</option>`).join('')}</select><button class="rounded-xl bg-uiBlue px-4 py-2 text-white">Actualizar</button></form></section>`;
+function renderAuthSocialLinks(mode) {
+  const label = mode === 'signup' ? 'Registrarme con' : 'Iniciar con';
+  return ['google', 'apple', 'facebook'].map((provider) => `<a href="#/auth/social/${provider}?mode=${mode}" class="auth-social"><span class="auth-social-ic">${socialIcon(provider)}</span>${label} ${provider[0].toUpperCase() + provider.slice(1)}</a>`).join('');
 }
 
-function renderReview(id) {
-  const req = storage.requests.find((r) => r.id === id);
-  if (!req) return '<p>No encontrada.</p>';
-  const techIds = [req.assigned.engineerId, ...req.assigned.technicianIds].filter(Boolean);
-  const techs = storage.users.filter((u) => techIds.includes(u.id));
-  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Reseñas (1-5) y favoritos</h2><form id="review-form" data-id="${id}" class="mt-4 space-y-3">${techs.map((t) => `<div class="rounded-xl border p-3"><p class="font-semibold">${esc(t.name)} (${esc(t.role)})</p><label>Rating <input type="number" name="rating_${t.id}" min="1" max="5" value="5" class="ml-2 w-16 rounded border p-1"/></label><label class="ml-4"><input type="checkbox" name="fav_${t.id}"/> Favorito</label></div>`).join('')}<textarea name="comment" class="w-full rounded-xl border p-2" placeholder="Comentario"></textarea><button class="rounded-xl bg-uiBlue px-4 py-2 text-white">Guardar reseña</button></form></section>`;
+function renderAuthSignup() {
+  return authCard('Regístrate', 'Crea tu cuenta con tu método preferido.', `${renderAuthSocialLinks('signup')}<div class="mt-4 grid gap-3 sm:grid-cols-2"><a href="#/auth/phone?mode=signup" class="auth-secondary">Número de celular</a><a href="#/auth/email?mode=signup" class="auth-secondary">Correo y contraseña</a></div><p class="mt-4 text-sm text-slateInk/70">¿Ya tienes cuenta? <a class="font-semibold text-uiBlue" href="#/auth/login">Inicia sesión</a></p>`);
 }
 
-function renderDispute(id) {
-  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Abrir reclamo</h2><form id="dispute-form" data-id="${id}" class="mt-4 grid gap-3"><input name="reason" required placeholder="Motivo" class="rounded-xl border p-2"/><textarea name="description" required class="rounded-xl border p-2" placeholder="Describe el problema"></textarea><select name="severity" class="rounded-xl border p-2"><option value="low">low</option><option value="medium">medium</option><option value="high">high</option></select><input type="file" name="evidence" multiple accept="image/*" class="rounded-xl border p-2"/><button class="rounded-xl bg-uiBlue px-4 py-2 text-white">Enviar reclamo</button></form></section>`;
+function renderAuthLogin() {
+  return authCard('Iniciar sesión', 'Accede para gestionar tus citas y soporte.', `${renderAuthSocialLinks('login')}<div class="mt-4 grid gap-3 sm:grid-cols-2"><a href="#/auth/phone?mode=login" class="auth-secondary">Entrar con celular</a><a href="#/auth/email?mode=login" class="auth-secondary">Entrar con correo</a></div><p class="mt-4 text-sm text-slateInk/70">¿No tienes cuenta? <a class="font-semibold text-uiBlue" href="#/auth/signup">Regístrate</a></p>`);
+}
+
+function renderAuthPhone(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard('Verifica tu celular', 'Te enviaremos un código OTP mock de 6 dígitos.', `<form id="phone-form" data-mode="${mode}" class="space-y-4"><label class="block">Número de celular<input name="phone" required minlength="8" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="+52 55 1234 5678" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Continuar</button></form>`);
+}
+
+function renderAuthOtp(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard('Código OTP', 'Ingresa el código mock: 123456.', `<form id="otp-form" data-mode="${mode}" class="space-y-4"><label class="block">OTP<input name="otp" required minlength="6" maxlength="6" class="mt-1 w-full rounded-xl border border-slate-200 p-3 tracking-[0.35em]" placeholder="123456" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">Validar código</button></form>`);
+}
+
+function renderAuthEmail(params) {
+  const mode = params.get('mode') || 'login';
+  return authCard(mode === 'signup' ? 'Registro por correo' : 'Ingreso por correo', 'Usa tu correo y contraseña para continuar.', `<form id="email-form" data-mode="${mode}" class="space-y-4"><label class="block">Nombre completo<input name="name" ${mode === 'signup' ? 'required' : ''} class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="Tu nombre" /></label><label class="block">Correo<input type="email" name="email" required class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="hola@correo.com" /></label><label class="block">Contraseña<input type="password" name="password" required minlength="6" class="mt-1 w-full rounded-xl border border-slate-200 p-3" placeholder="******" /></label><button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white">${mode === 'signup' ? 'Crear cuenta' : 'Entrar'}</button></form>`);
+}
+
+function renderAuthSocial(provider, params) {
+  const mode = params.get('mode') || 'login';
+  const name = provider[0].toUpperCase() + provider.slice(1);
+  return authCard(`${mode === 'signup' ? 'Registro' : 'Ingreso'} con ${name}`, `Este flujo es mock y simula autenticación con ${name}.`, `<button class="w-full rounded-xl bg-uiBlue px-4 py-3 font-semibold text-white" data-social-login="${provider}" data-mode="${mode}">Continuar con ${name}</button><p class="mt-3 text-sm text-slateInk/70">No se realizan llamadas externas.</p>`);
 }
 
 function renderAccount() {
-  const u = getCurrentUser();
-  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Cuenta</h2><p class="mt-2">${esc(u.name)} · ${esc(u.role)}</p><a href="#/account/favorites" class="mt-4 inline-block rounded-xl border px-3 py-2">Favoritos</a> <a href="#/account/settings" class="mt-4 inline-block rounded-xl border px-3 py-2">Ajustes</a></section>`;
+  const session = STORE.session;
+  if (!session.loggedIn) return '<section class="rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><p class="text-slateInk/75">Debes iniciar sesión para ver tu cuenta.</p><a href="#/auth/login" class="mt-4 inline-block rounded-xl bg-uiBlue px-4 py-2 text-white">Iniciar sesión</a></section>';
+  return `<section class="mx-auto max-w-2xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-3xl font-semibold">Mi cuenta</h2><p class="mt-2 text-slateInk/70">${session.name}</p><dl class="mt-5 grid gap-4 sm:grid-cols-2"><div class="rounded-2xl bg-haze p-4"><dt class="text-sm text-slateInk/70">Método</dt><dd class="font-semibold">${session.provider || 'email'}</dd></div><div class="rounded-2xl bg-haze p-4"><dt class="text-sm text-slateInk/70">Contacto</dt><dd class="font-semibold">${session.email || session.phone || 'Sin dato'}</dd></div></dl></section>`;
 }
-function renderFavorites() {
-  const u = getCurrentUser();
-  const list = storage.users.filter((x) => (u.favorites || []).includes(x.id));
-  return `<section><h2 class="text-2xl font-semibold">Favoritos</h2>${list.map((l) => `<p>${esc(l.name)}</p>`).join('') || '<p>Sin favoritos.</p>'}</section>`;
+
+function loginUser(user) {
+  STORE.session = { ...user, loggedIn: true };
+  renderAuthControls();
+  toast('¡Bienvenido a Figxly!');
+  navTo('/');
 }
-function renderSettings() {
-  const u = getCurrentUser();
-  return `<section class="mx-auto max-w-xl rounded-3xl bg-white/90 p-6 ring-1 ring-slate-200/80 shadow-card"><h2 class="text-2xl font-semibold">Ajustes</h2><form id="settings-form" class="mt-4"><label><input type="checkbox" name="hasVehicle" ${u.hasVehicle ? 'checked' : ''}/> Tengo vehículo</label><button class="ml-3 rounded-xl bg-uiBlue px-3 py-1 text-white">Guardar</button></form></section>`;
+
+function upsertUser(user) {
+  const users = STORE.users;
+  const key = user.email ? 'email' : user.phone ? 'phone' : 'id';
+  const next = users.filter((u) => (key === 'id' ? u.id !== user.id : u[key] !== user[key]));
+  next.unshift(user);
+  STORE.users = next;
+}
+
+function getInitials(name = 'U') {
+  return name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function renderAuthControls() {
+  const session = STORE.session;
+  const desktop = qs('#auth-desktop');
+  const mobile = qs('#auth-mobile');
+  if (!desktop || !mobile) return;
+
+  if (!session.loggedIn) {
+    desktop.innerHTML = `<a href="#/auth/login" class="auth-link">Iniciar sesión</a><a href="#/auth/signup" class="auth-btn">Regístrate</a>`;
+    mobile.innerHTML = `<div class="grid gap-2"><a href="#/auth/login" class="auth-link text-center">Iniciar sesión</a><a href="#/auth/signup" class="auth-btn text-center">Regístrate</a></div>`;
+    return;
+  }
+
+  desktop.innerHTML = `<div class="relative"><button id="account-btn" type="button" class="account-btn"><span class="account-avatar">${getInitials(session.name)}</span><span class="max-w-[140px] truncate">${session.name}</span></button><div id="account-menu" class="account-menu hidden"><a href="#/account" class="dd-item">Mi cuenta</a><a href="#/orders" class="dd-item">Mis citas</a><a href="#/reviews" class="dd-item">Mis reseñas</a><a href="#/support" class="dd-item">Soporte / Reclamos</a><button type="button" class="dd-item" data-logout>Cerrar sesión</button></div></div>`;
+  mobile.innerHTML = `<div class="rounded-2xl bg-white/80 p-3 ring-1 ring-slate-200/70"><p class="text-sm font-semibold text-slateInk">${session.name}</p><div class="mt-2 grid gap-2"><a href="#/account" class="dd-item">Mi cuenta</a><a href="#/orders" class="dd-item">Mis citas</a><a href="#/reviews" class="dd-item">Mis reseñas</a><a href="#/support" class="dd-item">Soporte / Reclamos</a><button type="button" class="dd-item" data-logout>Cerrar sesión</button></div></div>`;
+}
+
+
+function renderMyReviews() {
+  const reviews = STORE.reviews;
+  return `<section><h2 class="text-3xl font-semibold">Mis reseñas</h2><div class="mt-5 space-y-3">${reviews.map((r) => `<article class="rounded-2xl bg-white/85 p-4 ring-1 ring-slate-200/80 shadow-card"><p class="font-semibold">${r.user} · ⭐ ${r.rating}</p><p class="text-sm text-slateInk/70">${r.comment}</p></article>`).join('') || '<p class="text-slateInk/70">Todavía no has publicado reseñas.</p>'}</div></section>`;
 }
 
 function renderRoute() {
   const app = qs('#app');
   const { path, params } = parseHash();
-  const routes = [
-    ['/', () => renderHome()], ['/services', () => renderServices()], ['/auth/login', () => renderLogin()], ['/requests', () => renderRequests()], ['/request/new', () => renderRequestNew(params)], ['/dashboard', () => renderDashboard()], ['/dashboard/inbox', () => renderInbox()], ['/dashboard/transport', () => renderInbox()], ['/account', () => renderAccount()], ['/account/favorites', () => renderFavorites()], ['/account/settings', () => renderSettings()],
-  ];
-  for (const [p, fn] of routes) if (path === p) { app.innerHTML = fn(); bindEvents(); return; }
-  const dyn = [
-    ['/request/:id', ({ id }) => renderRequestDetail(id)], ['/request/:id/chat', ({ id }) => renderChat(id)], ['/request/:id/schedule', ({ id }) => renderSchedule(id)], ['/request/:id/payment', ({ id }) => renderPayment(id)], ['/request/:id/review', ({ id }) => renderReview(id)], ['/request/:id/dispute', ({ id }) => renderDispute(id)], ['/dashboard/request/:id', ({ id }) => renderRequestDetail(id, true)], ['/dashboard/request/:id/chat', ({ id }) => renderChat(id, true)], ['/dashboard/request/:id/status', ({ id }) => renderStatusPage(id)],
-  ];
-  for (const [pat, fn] of dyn) {
-    const match = routeMatch(path, pat);
-    if (match) { app.innerHTML = fn(match); bindEvents(); return; }
-  }
-  app.innerHTML = '<p>Ruta no encontrada.</p>';
+  const seg = path.split('/').filter(Boolean);
+  let html = '';
+  if (path === '/') html = renderHome();
+  else if (seg[0] === 'results') html = renderResults(params);
+  else if (seg[0] === 'pro') html = renderProProfile(seg[1]);
+  else if (seg[0] === 'booking') html = renderBooking(seg[1]);
+  else if (seg[0] === 'payment') html = renderPayment(seg[1]);
+  else if (seg[0] === 'review') html = renderReview(seg[1]);
+  else if (seg[0] === 'support') html = renderSupport(params);
+  else if (seg[0] === 'orders') html = renderOrders();
+  else if (seg[0] === 'tickets') html = renderTickets();
+  else if (seg[0] === 'reviews') html = renderMyReviews();
+  else if (seg[0] === 'account') html = renderAccount();
+  else if (seg[0] === 'auth' && seg[1] === 'signup') html = renderAuthSignup();
+  else if (seg[0] === 'auth' && seg[1] === 'login') html = renderAuthLogin();
+  else if (seg[0] === 'auth' && seg[1] === 'phone') html = renderAuthPhone(params);
+  else if (seg[0] === 'auth' && seg[1] === 'otp') html = renderAuthOtp(params);
+  else if (seg[0] === 'auth' && seg[1] === 'email') html = renderAuthEmail(params);
+  else if (seg[0] === 'auth' && seg[1] === 'social' && seg[2]) html = renderAuthSocial(seg[2], params);
+  else html = renderHome();
+  app.innerHTML = html;
+  renderAuthControls();
   bindEvents();
+  setupImageFallbacks();
+  updateActiveNav(path);
 }
 
-function updateRequest(id, cb) {
-  storage.requests = storage.requests.map((r) => (r.id === id ? cb({ ...r }) : r));
+function updateActiveNav(path) {
+  qsa('[data-nav]').forEach((a) => {
+    const on = path.startsWith(a.dataset.nav || '/__none__');
+    a.setAttribute('aria-current', on ? 'page' : 'false');
+  });
 }
 
-function filesToDataUrls(files) {
-  return Promise.all([...files].slice(0, 4).map((f) => new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(f);
-  })));
+function setupImageFallbacks() {
+  qsa('img[data-fallback="phone"]').forEach((img) => {
+    img.addEventListener('error', () => {
+      img.classList.add('hidden');
+      img.nextElementSibling?.classList.remove('hidden');
+    }, { once: true });
+  });
 }
 
 function bindEvents() {
-  renderHeaderControls();
-
-  qsa('[data-login]').forEach((b) => b.onclick = () => {
-    const user = storage.users.find((u) => u.id === b.dataset.login);
-    storage.currentUser = user;
-    storage.session = { loggedIn: true, role: user.role, userId: user.id };
-    navTo((state.redirectAfterLogin || '#/').replace('#', ''));
-    state.redirectAfterLogin = null;
-  });
-
-  qs('#dev-role')?.addEventListener('change', (e) => {
-    const role = e.target.value;
-    const user = storage.users.find((u) => u.role === role);
-    if (user) {
-      storage.currentUser = user;
-      storage.session = { loggedIn: true, role: user.role, userId: user.id };
-      uiToast(`Rol activo: ${role}`);
-      renderRoute();
-    }
-  });
-
-  qsa('[data-logout]').forEach((b) => b.onclick = () => { storage.session = { loggedIn: false }; storage.currentUser = null; navTo('/'); });
-
-  qs('input[name="photos"]')?.addEventListener('change', async (e) => {
-    const preview = qs('#photo-preview');
-    const urls = await filesToDataUrls(e.target.files);
-    e.target.dataset.urls = JSON.stringify(urls);
-    preview.innerHTML = urls.map((u) => `<img src="${u}" class="h-16 w-full rounded-xl object-cover" alt="preview"/>`).join('');
-  });
-
-  qs('#request-form')?.addEventListener('submit', async (e) => {
+  qs('#search-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const photosInput = qs('input[name="photos"]', e.currentTarget);
-    const photos = photosInput?.files?.length ? await filesToDataUrls(photosInput.files) : [];
-    const req = createRequest({
-      clientId: getCurrentUser().id,
-      serviceCategory: fd.get('serviceCategory'),
-      description: fd.get('description'),
-      photos,
-      address: { city: fd.get('city'), addressText: fd.get('addressText') },
-      requiresTransport: !!fd.get('requiresTransport'),
-      vehicleNeeded: !!fd.get('requiresTransport'),
-    });
-    uiToast('Solicitud publicada');
-    navTo(`/request/${req.id}`);
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    STORE.lastSearch = data;
+    const p = new URLSearchParams(data);
+    navTo(`/results?${p.toString()}`);
   });
+  qsa('[data-service]').forEach((b) => b.addEventListener('click', () => navTo(`/results?service=${encodeURIComponent(b.dataset.service)}`)));
+  qsa('[data-go-pro]').forEach((b) => b.addEventListener('click', () => navTo(`/pro/${b.dataset.goPro}`)));
+  qs('[data-book-now]')?.addEventListener('click', (e) => navTo(`/booking/${e.currentTarget.dataset.bookNow}`));
 
-  qsa('[data-act]').forEach((b) => b.onclick = () => {
-    const id = b.dataset.id;
-    const act = b.dataset.act;
-    const u = getCurrentUser();
-    uiModalConfirm('¿Confirmas esta acción?', () => {
-      if (act === 'take-engineer') updateRequest(id, (r) => addTimeline({ ...r, assigned: { ...r.assigned, engineerId: u.id } }, STATUS.engineer_accepted, 'Ingeniero asignado'));
-      if (act === 'take-tech') updateRequest(id, (r) => addTimeline({ ...r, assigned: { ...r.assigned, technicianIds: [...new Set([...r.assigned.technicianIds, u.id])] } }, STATUS.technician_accepted, 'Técnico aceptó caso'));
-      if (act === 'need-techs') updateRequest(id, (r) => addTimeline({ ...r, assigned: { ...r.assigned, additionalTechSlots: (r.assigned.additionalTechSlots || 0) + 2 } }, STATUS.additional_techs_needed, 'Se requieren 2 técnicos extra'));
-      if (act === 'take-transporter') updateRequest(id, (r) => addTimeline({ ...r, assigned: { ...r.assigned, transporterId: u.id } }, STATUS.pickup_planned, 'Transportista asignado'));
-      closeModal();
-      renderRoute();
-    });
-  });
-
-  qs('#schedule-form')?.addEventListener('submit', (e) => {
+  qs('#filters-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const id = e.currentTarget.dataset.id;
-    const fd = new FormData(e.currentTarget);
-    updateRequest(id, (r) => addTimeline({ ...r, schedule: { date: fd.get('date'), timeWindow: fd.get('timeWindow') } }, STATUS.consult_scheduled, 'Consulta agendada'));
-    updateRequest(id, (r) => addTimeline(r, STATUS.consult_payment_pending, 'Pago pendiente'));
-    uiToast('Agenda guardada');
-    navTo(`/request/${id}/payment`);
+    const current = parseHash().params;
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const p = new URLSearchParams({
+      q: current.get('q') || '',
+      loc: current.get('loc') || '',
+      date: current.get('date') || '',
+      service: data.service || '',
+      minRating: data.minRating || '0',
+      maxPrice: data.maxPrice || '10000',
+      verified: data.verified ? '1' : '0',
+      today: data.today ? '1' : '0',
+    });
+    navTo(`/results?${p.toString()}`);
+  });
+
+  qs('#booking-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const pro = window.FIGXLY_MOCK.getTechnician(payload.proId);
+    const estimate = pro.precioBase + (payload.visitType === 'urgente' ? 180 : 0);
+    const booking = {
+      id: uid('bk'),
+      proId: pro.id,
+      proName: pro.nombre,
+      date: payload.date,
+      time: payload.time,
+      address: payload.address,
+      notes: payload.notes,
+      visitType: payload.visitType,
+      estimate,
+      status: 'pending_payment',
+      createdAt: new Date().toISOString(),
+    };
+    STORE.bookings = [booking, ...STORE.bookings];
+    state.bookingDraft = booking;
+    navTo(`/payment/${booking.id}`);
   });
 
   qs('#payment-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const id = e.currentTarget.dataset.id;
+    const bookingId = e.currentTarget.dataset.bookingId;
     const method = new FormData(e.currentTarget).get('method');
-    storage.payments = [{ id: uid('pay'), requestId: id, method, amount: 500, createdAt: now(), status: 'paid' }, ...storage.payments];
-    updateRequest(id, (r) => addTimeline({ ...r, consultPaid: true }, STATUS.consult_paid, 'Pago de consulta recibido'));
-    updateRequest(id, (r) => addTimeline(r, STATUS.chat_opened, 'Chat habilitado'));
-    uiToast('Pago confirmado');
-    navTo(`/request/${id}/chat`);
+    STORE.bookings = STORE.bookings.map((b) => (b.id === bookingId ? { ...b, method, status: 'paid', paidAt: new Date().toISOString() } : b));
+    toast('Pago realizado con éxito');
+    navTo(`/review/${bookingId}`);
   });
 
-  qs('#chat-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const id = e.currentTarget.dataset.id;
-    const text = new FormData(e.currentTarget).get('text');
-    const u = getCurrentUser();
-    storage.messages = [...storage.messages, { id: uid('msg'), requestId: id, userId: u.id, userName: u.name, text, createdAt: now() }];
-    renderRoute();
-  });
+  qsa('[data-go-review]').forEach((b) => b.addEventListener('click', () => navTo(`/review/${b.dataset.goReview}`)));
 
-  qs('#status-form')?.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const id = e.currentTarget.dataset.id;
-    const status = new FormData(e.currentTarget).get('status');
-    updateRequest(id, (r) => addTimeline(r, status, `Estado actualizado a ${STATUS_LABEL[status]}`));
-    if (status === STATUS.completed) updateRequest(id, (r) => addTimeline(r, STATUS.awaiting_review, 'Esperando reseña del cliente'));
-    uiToast('Estado actualizado');
-    navTo(`/dashboard/request/${id}`);
+  qsa('[data-star]').forEach((starBtn) => {
+    starBtn.addEventListener('click', () => {
+      state.activeStars = Number(starBtn.dataset.star);
+      qs('#review-form input[name="rating"]').value = String(state.activeStars);
+      qsa('[data-star]').forEach((el) => el.classList.toggle('opacity-40', Number(el.dataset.star) > state.activeStars));
+    });
   });
 
   qs('#review-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const id = e.currentTarget.dataset.id;
-    const fd = new FormData(e.currentTarget);
-    const req = storage.requests.find((r) => r.id === id);
-    const client = getCurrentUser();
-    const targets = [req.assigned.engineerId, ...req.assigned.technicianIds].filter(Boolean);
-    const reviews = targets.map((t) => ({ id: uid('rv'), requestId: id, targetUserId: t, clientId: client.id, rating: Number(fd.get(`rating_${t}`) || 5), favorite: !!fd.get(`fav_${t}`), comment: fd.get('comment'), createdAt: now() }));
-    storage.reviews = [...reviews, ...storage.reviews];
-    storage.users = storage.users.map((u) => (u.id === client.id ? { ...u, favorites: [...new Set([...(u.favorites || []), ...reviews.filter((r) => r.favorite).map((r) => r.targetUserId)])] } : u));
-    updateRequest(id, (r) => addTimeline(r, STATUS.closed, 'Solicitud cerrada y reseñada'));
-    uiToast('Reseña guardada');
-    navTo('/requests');
+    const bookingId = e.currentTarget.dataset.bookingId;
+    const booking = STORE.bookings.find((b) => b.id === bookingId);
+    const review = Object.fromEntries(new FormData(e.currentTarget).entries());
+    STORE.reviews = [{ id: uid('rv'), technicianId: booking.proId, bookingId, user: STORE.session.name, rating: Number(review.rating), comment: review.comment, createdAt: new Date().toISOString() }, ...STORE.reviews];
+    if (review.reportIssue) {
+      navTo(`/support?bookingId=${encodeURIComponent(bookingId)}`);
+      return;
+    }
+    toast('Gracias por tu reseña');
+    navTo('/');
   });
 
-  qs('#dispute-form')?.addEventListener('submit', async (e) => {
+  qs('#support-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const id = e.currentTarget.dataset.id;
-    const fd = new FormData(e.currentTarget);
-    const files = e.currentTarget.querySelector('input[name="evidence"]').files;
-    const evidencePhotos = files.length ? await filesToDataUrls(files) : [];
-    const outcome = fd.get('severity') === 'high' ? 'refund' : 'fix';
-    const dispute = { id: uid('dsp'), requestId: id, clientId: getCurrentUser().id, reason: fd.get('reason'), description: fd.get('description'), evidencePhotos, severity: fd.get('severity'), outcome, status: 'resolved' };
-    storage.disputes = [dispute, ...storage.disputes];
-    updateRequest(id, (r) => addTimeline(r, STATUS.dispute_opened, 'Reclamo abierto'));
-    updateRequest(id, (r) => addTimeline(r, STATUS.dispute_reviewing, 'Reclamo en revisión'));
-    if (outcome === 'refund') updateRequest(id, (r) => addTimeline(r, STATUS.refund_issued, 'Reembolso emitido (mock)'));
-    updateRequest(id, (r) => addTimeline(r, STATUS.resolved, `Reclamo resuelto: ${outcome}`));
-    uiToast('Reclamo enviado y resuelto (mock)');
-    navTo(`/request/${id}`);
+    const payload = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const ticket = { id: uid('tk'), folio: `FGX-${Math.floor(100000 + Math.random() * 900000)}`, status: 'open', createdAt: new Date().toISOString(), ...payload };
+    STORE.tickets = [ticket, ...STORE.tickets];
+    toast(`Ticket creado: ${ticket.folio}`);
+    navTo('/tickets');
   });
 
-  qs('#settings-form')?.addEventListener('submit', (e) => {
+  qs('#phone-form')?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const hasVehicle = !!new FormData(e.currentTarget).get('hasVehicle');
-    const u = getCurrentUser();
-    storage.users = storage.users.map((x) => (x.id === u.id ? { ...x, hasVehicle } : x));
-    storage.currentUser = storage.users.find((x) => x.id === u.id);
-    uiToast('Ajustes guardados');
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    STORE.pendingOtp = { phone: data.phone, mode: e.currentTarget.dataset.mode || 'login', otp: '123456' };
+    toast('OTP mock enviado: 123456');
+    navTo(`/auth/otp?mode=${encodeURIComponent(e.currentTarget.dataset.mode || 'login')}`);
   });
 
-  qs('#modal-root')?.addEventListener('click', (e) => {
-    if (e.target.matches('[data-modal-cancel]')) closeModal();
-    if (e.target.matches('[data-modal-confirm]') && state.modalAction) state.modalAction();
+  qs('#otp-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const pending = STORE.pendingOtp;
+    if (!pending || data.otp !== '123456') {
+      toast('OTP inválido');
+      return;
+    }
+    const user = { id: uid('usr'), name: `Usuario ${pending.phone.slice(-4)}`, phone: pending.phone, provider: 'phone' };
+    upsertUser(user);
+    STORE.pendingOtp = null;
+    loginUser(user);
+  });
+
+  qs('#email-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.currentTarget).entries());
+    const mode = e.currentTarget.dataset.mode || 'login';
+    const existing = STORE.users.find((u) => u.email === data.email);
+    if (mode === 'login' && !existing) {
+      toast('Cuenta no encontrada, regístrate primero');
+      navTo('/auth/signup');
+      return;
+    }
+    if (mode === 'login' && existing.password !== data.password) {
+      toast('Contraseña incorrecta');
+      return;
+    }
+    const user = mode === 'login' ? existing : { id: uid('usr'), name: data.name || data.email.split('@')[0], email: data.email, password: data.password, provider: 'email' };
+    if (mode === 'signup') upsertUser(user);
+    loginUser(user);
+  });
+
+  qsa('[data-social-login]').forEach((btn) => btn.addEventListener('click', () => {
+    const provider = btn.dataset.socialLogin;
+    const user = { id: uid('usr'), name: `Usuario ${provider}`, provider };
+    upsertUser(user);
+    loginUser(user);
+  }));
+
+  qsa('[data-logout]').forEach((btn) => btn.addEventListener('click', () => {
+    STORE.session = { loggedIn: false, name: 'Invitado' };
+    renderAuthControls();
+    toast('Sesión cerrada');
+    navTo('/');
+  }));
+
+  qs('#account-btn')?.addEventListener('click', () => qs('#account-menu')?.classList.toggle('hidden'));
+}
+
+function setupChrome() {
+  const btn = qs('#btn-mobile-menu');
+  const panel = qs('#mobile-menu');
+
+  btn?.addEventListener('click', () => {
+    panel?.classList.toggle('hidden');
+    btn.setAttribute('aria-expanded', String(btn.getAttribute('aria-expanded') !== 'true'));
+  });
+  document.addEventListener('click', (e) => {
+    const accountBtn = qs('#account-btn');
+    const accountMenu = qs('#account-menu');
+    if (!accountBtn?.contains(e.target) && !accountMenu?.contains(e.target)) accountMenu?.classList.add('hidden');
   });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  ensureSession();
   if (!location.hash) navTo('/');
+  setupChrome();
   renderRoute();
   window.addEventListener('hashchange', renderRoute);
 });
