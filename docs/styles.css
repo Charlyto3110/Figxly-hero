@@ -50,3 +50,47 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+.auth-link,
+.auth-btn,
+.auth-secondary,
+.auth-social,
+.account-btn {
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.auth-link,
+.auth-secondary {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  color: rgba(31, 42, 68, 0.92);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.auth-btn {
+  background: #0f2a55;
+  color: #fff;
+}
+
+.auth-secondary,
+.auth-social {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  padding: 12px 14px;
+  width: 100%;
+  color: rgba(31, 42, 68, 0.95);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.auth-social + .auth-social { margin-top: 10px; }
+.auth-social-ic { width: 18px; height: 18px; display: inline-flex; }
+.account-btn { display: inline-flex; align-items: center; gap: 10px; border: 1px solid rgba(148, 163, 184, 0.45); background: rgba(255,255,255,0.88); }
+.account-avatar { width: 30px; height: 30px; border-radius: 999px; background: #ddebff; color: #0f2a55; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.account-menu { position: absolute; right: 0; margin-top: 10px; width: 210px; border-radius: 16px; border: 1px solid rgba(226,232,240,0.75); background: #fff; padding: 8px; box-shadow: 0 10px 35px rgba(15, 23, 42, 0.1); }
